@@ -211,6 +211,10 @@ This may take a while so leave it running overnight!
 :::
 
 ```{r}
+
+# Measure the time taken for parallel grid search
+time_taken <- system.time({
+  
 # Set up parallel backend with the number of cores (adjust according to your system)
 num_cores <- detectCores() - 1  # to leave one core free
 cl <- makeCluster(num_cores)
@@ -268,9 +272,18 @@ registerDoSEQ()  # Reset back to sequential processing
 
 # Display the results
 print(results)
+
+})
+
+# Print the time taken
+print(time_taken)
 ```
 
 ```{r}
+
+# Measure the time taken for parallel grid search
+time_taken <- system.time({
+  
 # grid search 
 for(i in 1:nrow(hyper_grid)) {
 
@@ -301,7 +314,12 @@ for(i in 1:nrow(hyper_grid)) {
 #   # add min training error and trees to grid
    hyper_grid$optimal_trees[i] <- which.min(xgb.tune$evaluation_log$test_rmse_mean)
    hyper_grid$min_RMSE[i] <- min(xgb.tune$evaluation_log$test_rmse_mean)
- }
+}
+
+})
+
+# Print the time taken
+print(time_taken)
 
 hyper_grid %>%
   dplyr::arrange(min_RMSE) %>%
