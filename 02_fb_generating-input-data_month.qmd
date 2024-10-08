@@ -188,7 +188,7 @@ lad_fb_pop_sfb <- long_fbpop_sf %>%
 # aggregate pop counts - this produces the same result if this is implemented in the last line above directly
 lad_fb_pop_sf2 <- lad_fb_pop_sfb %>%
   group_by( LAD21NM ) %>%
-  summarise(pop_dfd = round(sum(pop_dfdb, na.rm = TRUE)) ) %>% 
+  summarise(pop_dfd = round(mean(pop_dfdb, na.rm = TRUE)) ) %>% 
   st_drop_geometry()
 ```
 

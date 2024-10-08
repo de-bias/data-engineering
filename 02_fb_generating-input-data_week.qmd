@@ -6,32 +6,33 @@ editor: visual
 ---
 
 # Clean environment
+
 ```{r}
 rm(list=ls())
 ```
 
-
 # Dependencies
+
 ```{r}
 library(tidyverse)
 library(sf)
 library(patchwork)
 ```
 
-
 # Set working directory
 
 ## Server
+
 ```{r}
 server_dir <- "/Volumes/DEBIAS/data/inputs"
 ```
-
 
 # Data inputs
 
 ## Population data
 
 FB gridded population data for March for week 15/03 to 21/03 and monthly (inc weekends) – use only 00:00-08:00 time window to capture residents
+
 ```{r}
 # time_taken <- system.time({
   
@@ -51,6 +52,7 @@ names(data_list) <- sapply(basename(csv_files), function(x) {
 # 
 # print(time_taken)
 ```
+
 ## Boundary vector data
 
 ### Local authority districts
@@ -69,6 +71,7 @@ ggplot() +
 ```
 
 ### Facebook grids
+
 ```{r}
 grid_shp <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/fb-grids/gridded_uk_shp.shp") %>% 
   st_simplify(preserveTopology =T, # simplify boundaries
@@ -78,11 +81,13 @@ grid_shp <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/fb-grids
 plot(grid_shp$geometry)
 
 ```
+
 # Average gridded population
 
 ## Approach 1: averaging temporally and then aggregating spatially
 
 ### Average for the week 15/03 to 21/03 of 2021 for resident population (i.e. 00.00 - 8.00)
+
 ```{r}
 # define date range as a safety check
 selected_dates <- c("2021-03-15", "2021-03-16", "2021-03-17", "2021-03-18", "2021-03-19", "2021-03-20", "2021-03-21") 
@@ -111,7 +116,9 @@ average_gridded_pop_df <- selected_gridded_data %>%
   summarise(week_avg_fb_pop = mean(n_crisis, na.rm = TRUE))
 
 ```
+
 Checking the share of grids with average population counts
+
 ```{r}
 # original input data
  (sum(is.na(selected_gridded_data$n_crisis)) / nrow(selected_gridded_data)) * 100
@@ -119,10 +126,10 @@ Checking the share of grids with average population counts
  (sum(is.na(average_gridded_pop_df$week_avg_fb_pop)) / nrow(average_gridded_pop_df)) * 100
 ```
 
-
 ## Assign grids to polygons
 
 ### Join points to polygons
+
 ```{r}
 # convert points dataframe to an sf object with longitude and latitude as geometry
 average_gridded_pop_sf <- st_as_sf(average_gridded_pop_df, coords = c("lon", "lat"), crs = 4326)  # WGS84 CRS
@@ -148,6 +155,7 @@ point_map + pop_map
 ```
 
 ### Sum gridded population within LDAs
+
 ```{r}
 lad_fb_pop_sf <- fb_pop_sf %>%
   group_by( LAD21NM ) %>%
@@ -156,6 +164,7 @@ lad_fb_pop_sf <- fb_pop_sf %>%
 ```
 
 ## Saving
+
 ```{r}
 write_csv(lad_fb_pop_sf, "/Volumes/DEBIAS/data/inputs/fb/census-week/tts/active_population.csv")
 
@@ -166,6 +175,7 @@ write_csv(lad_fb_pop_sf, "/Volumes/DEBIAS/data/inputs/fb/census-week/tts/active_
 ### Assign grids to polygons
 
 #### Join points to polygons and aggregate grided population counts within LDAs
+
 ```{r}
 # convert points dataframe to an sf object with longitude and latitude as geometry
 selected_gridded_data_sf <- st_as_sf(selected_gridded_data, coords = c("lon", "lat"), crs = 4326)  # WGS84 CRS
@@ -179,21 +189,20 @@ lad_fb_pop_sfb <- long_fbpop_sf %>%
   summarise(pop_dfdb = round(sum(n_crisis, na.rm = TRUE)) ) %>% 
   st_drop_geometry()
 ```
- 
+
 ## Averaging temporally
 
 ```{r}
 # aggregate pop counts - this produces the same result if this is implemented in the last line above directly
 lad_fb_pop_sf2 <- lad_fb_pop_sfb %>%
   group_by( LAD21NM ) %>%
-  summarise(pop_dfd = round(sum(pop_dfdb, na.rm = TRUE)) ) %>% 
+  summarise(pop_dfd = round(mean(pop_dfdb, na.rm = TRUE)) ) %>% 
   st_drop_geometry()
 ```
 
 ## Saving
+
 ```{r}
 write_csv(lad_fb_pop_sf2, "/Volumes/DEBIAS/data/inputs/fb/census-week/stt/active_population.csv")
 
 ```
-
-
