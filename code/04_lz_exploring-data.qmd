@@ -1,0 +1,178 @@
+---
+title: "explore-data-locomizer"
+format: html
+editor: visual
+---
+
+# Import libraries
+
+```{r}
+library(dplyr)
+library(sf)
+library(ggplot2)
+library(tmap)
+library(viridis)
+library(spdep)
+library(sysfonts)
+library(showtextdb)
+library(classInt)
+library(scales)
+library(forcats)
+library(spgwr)
+library(arrow)
+```
+
+# Set themes
+
+```{r}
+#| include = FALSE
+source("./style/data-visualisation_theme.R")
+```
+
+# Data import
+
+## Census and boundaries
+
+```{r}
+wd <- "/Volumes/rdm04/DEBIAS"
+wd_local <- "/Users/carmen/Documents/github/de-bias"
+```
+
+```{r}
+df_pop_census <- read.csv(paste0(wd, "/data/inputs/census/census2021-ts/census2021-ts001/census2021-ts001-ltla.csv")) %>% select(date, geography, geography.code, Residence.type..Total..measures..Value) %>% rename("code" = "geography.code", "name" = "geography", "pop" = "Residence.type..Total..measures..Value")
+
+df_boundaries <- st_read(paste0(wd, "/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022.gpkg")) %>% select(LAD21CD, SHAPE) %>% rename("code" = "LAD21CD")
+
+df_boundaries_up <- st_read(paste0(wd, "/data/inputs/geographies/boundaries/RGN_Dec_2021_EN_BFC_2022.gpkg")) %>% st_simplify(preserveTopology = FALSE, dTolerance = 1000)
+
+df_boundaries_hex <- st_read(paste0(wd, "/data/inputs/geographies/hexboundaries/uk-local-authority-districts-2021.geojson")) %>% st_transform(st_crs(df_boundaries_up)) %>% rename("code" = "id")
+```
+
+## Digital trace data from Alexei
+
+This first line defines the data source to be analysed. We have one option:
+
+-   `locomizer`
+
+```{r}
+dfd <- "locomizer"
+```
+
+```{r}
+if (dfd == "locomizer") {
+  df_pop_dfd <- read.csv(paste0(wd, "/data/inputs/locomizer/LOCOMIZER SAMPLE DATA_NOV_2024/TOP 100 UK CITIES_H3_lvl11_FOOTFALL/Manchester_H3_lvl11_2024-09-01_UK.csv"))
+  
+  df_mov_dfd <- read.csv(paste0(wd, "/data/inputs/locomizer/LOCOMIZER SAMPLE DATA_NOV_2024/TOP 100 UK CITIES_H3_lvl11_DESTINATION-lvl10_ORIGIN/Manchester_Origin_Hex_H3_lvl10_Destination_Hex_H3_lvl11_2024-09-01_UK.csv")) #%>% 
+    #filter(time == "2021-03")
+  } 
+
+```
+
+```{r}
+head(df_pop_dfd)
+```
+```{r}
+
+# Create a new 'date' column
+df_pop_dfd$date <- as.Date(paste(df_pop_dfd$YEAR, df_pop_dfd$MONTH, df_pop_dfd$DAY, sep = "-"), format = "%Y-%m-%d")
+
+
+```
+
+
+```{r}
+head(df_pop_dfd)
+```
+
+```{r}
+# Creating a new data frame called "df_crisis" by performing the following operations:
+
+# Grouping the rows of the "df_mov" data frame by the "date" column
+df_crisis <- df_pop_dfd %>%
+  group_by(df_pop_dfd$date) %>%
+  
+# Summarizing the grouped data by calculating the total sum of the "n_crisis" column
+# and creating a new column called "total" to store the sum
+  summarise(total = sum(EXTRAPOLATED_NUMBER_OF_USERS)) %>%
+  
+# Renaming the "df_mov$date" column as "date" in the resulting data frame
+  rename("date" = "df_pop_dfd$date")
+```
+
+
+```{r}
+# Creating a line plot using ggplot
+
+ggplot() +
+  
+  # Adding a line layer for the "df_baseline" data
+  geom_line(mapping = aes(x = date, y = total, color = "Crisis"), 
+            data = df_crisis, linewidth = 1.5) +
+  
+  # Customizing the color scale manually
+  scale_color_manual(values = c("Crisis" = "red"),
+                     labels = c("Crisis")) +
+  
+  # Customizing plot labels
+  labs(color = "Legend", 
+       title = "Figure 1: Temporal patterns in the number of users in Manchester",
+       x = "Date",
+       y = "Number of users") +
+  
+  theme_minimal()
+```
+## Digital trace data from Andrew
+
+```{r}
+if (dfd == "locomizer") {
+  df_pop_dfd_andrew <- read_parquet(paste0(wd, "/data/inputs/locomizer/locomizer-andrew/users.parquet"))
+  
+  df_mov_dfd_andrew <- read_parquet(paste0(wd, "/data/inputs/locomizer/locomizer-andrew/traces_2021-03-09_2021-03-23.parquet")) #%>% 
+    #filter(time == "2021-03")
+  } 
+
+```
+
+
+```{r}
+head(df_pop_dfd_andrew)
+```
+```{r}
+nrow(df_mov_dfd_andrew)
+```
+
+```{r}
+length(unique(df_mov_dfd_andrew$userid))
+```
+
+```{r}
+# Aggregate data to count unique users per hour
+hourly_unique_users <- df_mov_dfd_andrew %>%
+  group_by(date, hour) %>%
+  summarise(unique_users = n_distinct(userid), .groups = "drop")
+
+# Combine `date` and `hour` into a single datetime column for plotting
+hourly_unique_users <- hourly_unique_users %>%
+  mutate(datetime = as.POSIXct(paste(date, hour), format = "%Y-%m-%d %H"))
+
+```
+
+```{r}
+ggplot(hourly_unique_users, aes(x = datetime, y = unique_users)) +
+  geom_line(color = "blue") +
+  labs(title = "Unique Users Per Hour",
+       x = "Time",
+       y = "Unique Users") +
+  theme_minimal() +
+  scale_x_datetime(date_breaks = "48 hours", date_labels = "%b %d")
+```
+
+
+
+Alexei:
+- data on user counts, by day by hexagon
+- data on movements, by day, by hexagon
+
+Andrew
+- data on individual user residence and work, by hexagon, during a time period sapnning march 9th to march 23rd
+- data on individual user traces, by hour, in the time period spannning march 9th to march 23rd 
