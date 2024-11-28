@@ -21,6 +21,9 @@ library(forcats)
 library(spgwr)
 library(arrow)
 library(h3)
+library(archive)
+library(ggspatial)
+library(basemapR)
 ```
 
 # Set themes
@@ -52,16 +55,18 @@ df_boundaries_hex <- st_read(paste0(wd, "/data/inputs/geographies/hexboundaries/
 
 ## Digital trace data from Alexei
 
+### locomizer-ffall-spatial
+
 This first line defines the data source to be analysed. We have one option:
 
--   `locomizer`
+-   `locomizer-ffall-spatial`
 
 ```{r}
-dfd <- "locomizer"
+dfd <- "locomizer-ffall-spatial"
 ```
 
 ```{r}
-if (dfd == "locomizer") {
+if (dfd == "locomizer-ffall-spatial") {
   df_pop_dfd <- read.csv(paste0(wd, "/data/inputs/locomizer/LOCOMIZER SAMPLE DATA_NOV_2024/TOP 100 UK CITIES_H3_lvl11_FOOTFALL/Manchester_H3_lvl11_2024-09-01_UK.csv"))
   
   df_mov_dfd <- read.csv(paste0(wd, "/data/inputs/locomizer/LOCOMIZER SAMPLE DATA_NOV_2024/TOP 100 UK CITIES_H3_lvl11_DESTINATION-lvl10_ORIGIN/Manchester_Origin_Hex_H3_lvl10_Destination_Hex_H3_lvl11_2024-09-01_UK.csv")) #%>% 
@@ -106,51 +111,124 @@ sf_pop_h3 <- st_as_sf(sf_pop_h3, sf_column_name = "geometry")
 ```{r}
 # Plot the map
 ggplot(data = sf_pop_h3) +
-  geom_sf(aes(fill = total), size = 0.1) +    # Use the `total` column to fill polygons
-  # geom_sf(data = df_boundaries_up,           # Add boundary overlay
-  #         fill = NA,                         # No fill for the boundaries
-  #         color = "black",                   # Boundary color
-  #         size = 0.3) + 
-  scale_fill_viridis_c(option = "viridis") + # Apply the viridis color scale
-  theme_map_tufte() +               # Use a minimal theme for better visuals
+  base_map(st_bbox(sf_pop_h3), basemap = 'google-terrain', increase_zoom = 2) +
+  geom_sf(aes(fill = log(total)), size = 0.1) +    
+  scale_fill_viridis_c(option = "viridis") + 
+  # theme_map_tufte() +               
   labs(
-    fill = "Total",               # Legend title
-    title = "Map of Total Values",
-    subtitle = "Using the Viridis Color Scale"
-  )
+    fill = "log(Total)",               
+    title = "Map of total footfall for one day \n(October 1st 2024)",
+  ) +
+  theme_map_tufte()
+
+
+```
+
+### locomizer-ffall-temporal
+
+This first line defines the data source to be analysed. We have one option:
+
+-   `locomizer-ffall-temporal`
+
+```{r}
+dfd <- "locomizer-ffall-temporal"
+```
+
+```{r}
+if (dfd == "locomizer-ffall-temporal") {
+  rar_file <- paste0(wd, "/data/inputs/locomizer/LOCOMIZER SAMPLE DATA_NOV_2024/TOP 100 UK CITIES_H3_lvl10_FOOTFALL/Manchester_H3_lvl10_2024-09-01_UK.rar")
+  extract_file <- archive_extract(rar_file, paste0(wd, "/data/inputs/locomizer/LOCOMIZER SAMPLE DATA_NOV_2024/TOP 100 UK CITIES_H3_lvl10_FOOTFALL/"))
+  df_pop_dfd <- read.csv(paste0(wd, "/data/inputs/locomizer/LOCOMIZER SAMPLE DATA_NOV_2024/TOP 100 UK CITIES_H3_lvl10_FOOTFALL/", extract_file))
+
+} 
+```
+
+Below we see the dataframe of active users, for one day, aggregated by hexagon.
+
+```{r}
+head(df_pop_dfd)
+```
+
+```{r}
+nrow(df_pop_dfd)
+```
+
+Spatial resolution is lower, but it is aggregated by the hour!
+
+```{r}
+length(unique(df_pop_dfd$CODE))
+
 
 ```
 
 ```{r}
-# Creating a line plot using ggplot
+# Creating a new sf called "sf_pop_h3" by performing the following operations:
 
-ggplot() +
+# Grouping the rows of the "df_mov" data frame by the "date" column
+sf_pop_h3 <- df_pop_dfd %>%
+  group_by(df_pop_dfd$CODE) %>%
+# Summarizing the grouped data by calculating the total sum of the relevant column
+  summarise(total = sum(EXTRAPOLATED_NUMBER_OF_USERS)) %>%
+  rename("CODE" = "df_pop_dfd$CODE")
   
-  # Adding a line layer for the "df_baseline" data
-  geom_line(mapping = aes(x = date, y = total, color = "Crisis"), 
-            data = df_crisis, linewidth = 1.5) +
+sf_pop_h3$geometry <- h3_to_geo_boundary_sf(sf_pop_h3$CODE)$geometry 
+
+sf_pop_h3 <- st_as_sf(sf_pop_h3, sf_column_name = "geometry")
   
-  # Customizing the color scale manually
-  scale_color_manual(values = c("Crisis" = "red"),
-                     labels = c("Crisis")) +
-  
-  # Customizing plot labels
-  labs(color = "Legend", 
-       title = "Figure 1: Temporal patterns in the number of users in Manchester",
-       x = "Date",
-       y = "Number of users") +
-  
-  theme_minimal()
+```
+
+```{r}
+# Plot the map
+ggplot(data = sf_pop_h3) +
+  base_map(st_bbox(sf_pop_h3), basemap = 'google-terrain', increase_zoom = 2) +
+  geom_sf(aes(fill = log(total)), size = 0.1) +    
+  scale_fill_viridis_c(option = "viridis") + 
+  # theme_map_tufte() +               
+  labs(
+    fill = "log(Total)",               
+    title = "Map of total footfall for one day \n(October 1st 2024)",
+  ) +
+  theme_map_tufte()
+
+
+
+```
+
+```{r}
+# Aggregate data to count unique users per hour
+hourly_unique_users <- df_pop_dfd %>%
+  group_by(YEAR, MONTH, DAY, TIME_INTERVAL) %>%
+  summarise(total = sum(NUMBER_OF_USERS), .groups = "drop") %>% subset(TIME_INTERVAL != 25)
+
+# Combine `date` and `hour` into a single datetime column for plotting
+hourly_unique_users <- hourly_unique_users %>%
+  mutate(datetime = as.POSIXct(paste(YEAR, MONTH, DAY, TIME_INTERVAL, sep = "-"), format = "%Y-%m-%d-%H"))
+
+```
+
+```{r}
+ggplot(hourly_unique_users, aes(x = datetime, y = total)) +
+  geom_line(color = "blue") +
+  labs(title = "Unique Users Per Hour",
+       x = "Time",
+       y = "Unique Users") +
+  theme_plot_tufte() 
 ```
 
 ## Digital trace data from Andrew
 
+### locomizer-users
+
+This one is the smaller dataset, where rows are (in theory, unique?) users, and for each, residence and workplace are identified. It is just for London as we see in the map. The data contains date ranges of 2 weeks every 2 months from February 2020 to March 2022. Perhaps, residences are recomputed for each date range, but not sure.
+
 ```{r}
-if (dfd == "locomizer") {
+dfd <- "locomizer-users"
+```
+
+
+```{r}
+if (dfd == "locomizer-users") {
   df_pop_dfd_andrew <- read_parquet(paste0(wd, "/data/inputs/locomizer/locomizer-andrew/users.parquet"))
-  
-  df_mov_dfd_andrew <- read_parquet(paste0(wd, "/data/inputs/locomizer/locomizer-andrew/traces_2021-03-09_2021-03-23.parquet")) #%>% 
-    #filter(time == "2021-03")
   } 
 
 ```
@@ -158,14 +236,131 @@ if (dfd == "locomizer") {
 ```{r}
 head(df_pop_dfd_andrew)
 ```
+```{r}
+unique(df_pop_dfd_andrew$file)
+```
 
 ```{r}
-nrow(df_mov_dfd_andrew)
+nrow(df_pop_dfd_andrew)
+```
+
+More rows than user IDs as demonstrated below. Strange.
+
+```{r}
+length(unique(df_pop_dfd_andrew$userid))
+```
+
+```{r}
+# Creating a new sf called "sf_pop_h3" by performing the following operations:
+
+# Grouping the rows of the "df_mov" data frame by the "date" column
+sf_pop_h3 <- df_pop_dfd_andrew %>%
+  group_by(residential_polygon) %>%
+  summarise(unique_users = n_distinct(userid)) %>%
+  rename("CODE" = "residential_polygon")
+  
+sf_pop_h3$geometry <- h3_to_geo_boundary_sf(sf_pop_h3$CODE)$geometry
+
+sf_pop_h3 <- st_as_sf(sf_pop_h3, sf_column_name = "geometry") %>%
+  mutate(area = st_area(geometry))
+
+```
+
+Weird. I get a polygon that is much bigger than everyone else and is not in the UK (see `sf_pop_h3`). I will eliminate it. It is the one with the largest area.
+
+```{r}
+# Identify and remove the polygon with the largest area
+sf_pop_h3 <- sf_pop_h3 %>%
+  filter(area != max(area)) %>%  
+  select(-area)  
+```
+
+
+```{r}
+# Plot the map
+ggplot(data = sf_pop_h3) +
+  base_map(st_bbox(sf_pop_h3), basemap = 'google-terrain', increase_zoom = 2) + 
+  geom_sf(aes(fill = log(unique_users)), size = 0.01) +    
+  scale_fill_viridis_c(option = "viridis") + 
+  theme_map_tufte() +               
+  labs(
+    fill = "log(Total)",               # Legend title
+    title = "Map of Total Values",
+  )
+
+```
+
+### locomizer-movs
+
+This is a bigger dataset, where rows are users locations, with lat lon and date and hour.
+
+```{r}
+dfd <- "locomizer-movs"
+```
+
+
+```{r}
+if (dfd == "locomizer-movs") {
+  df_mov_dfd_andrew <- read_parquet(paste0(wd, "/data/inputs/locomizer/locomizer-andrew/traces_2021-03-09_2021-03-23.parquet")) #%>% 
+    #filter(time == "2021-03")
+  } 
+
+```
+
+```{r}
+head(df_mov_dfd_andrew)
+```
+
+```{r}
+nrow(df_pop_dfd_andrew)
 ```
 
 ```{r}
 length(unique(df_mov_dfd_andrew$userid))
 ```
+
+
+```{r}
+coords <- df_mov_dfd_andrew %>%
+  select(lat, lon)
+res <- 7
+
+df_mov_dfd_andrew$h3_index <- geo_to_h3(coords, res)
+```
+
+```{r}
+# Creating a new sf called "sf_pop_h3" by performing the following operations:
+
+# Grouping the rows of the "df_mov" data frame by the "date" column
+sf_pop_h3 <- df_mov_dfd_andrew %>%
+  group_by(h3_index) %>%
+  summarise(unique_users = n_distinct(userid)) %>%
+  rename("CODE" = "h3_index")
+  
+sf_pop_h3$geometry <- h3_to_geo_boundary_sf(sf_pop_h3$CODE)$geometry
+
+sf_pop_h3 <- st_as_sf(sf_pop_h3, sf_column_name = "geometry") %>%
+  mutate(area = st_area(geometry))
+
+```
+
+
+```{r}
+# Plot the map
+ggplot(data = sf_pop_h3) +
+  base_map(st_bbox(sf_pop_h3), basemap = 'google-terrain', increase_zoom = 2) + 
+  geom_sf(aes(fill = log(unique_users)), size = 0.01) +    
+  scale_fill_viridis_c(option = "viridis") + 
+  theme_map_tufte() +               
+  labs(
+    fill = "log(Total)",               # Legend title
+    title = "Map of Total Values",
+  )
+
+```
+
+
+
 
 ```{r}
 # Aggregate data to count unique users per hour
@@ -188,6 +383,9 @@ ggplot(hourly_unique_users, aes(x = datetime, y = unique_users)) +
   theme_minimal() +
   scale_x_datetime(date_breaks = "48 hours", date_labels = "%b %d")
 ```
+
+
+# Conclusion
 
 Alexei: - data on user counts, by day by hexagon - data on movements, by day, by hexagon
 
