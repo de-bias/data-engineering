@@ -225,7 +225,6 @@ This one is the smaller dataset, where rows are (in theory, unique?) users, and 
 dfd <- "locomizer-users"
 ```
 
-
 ```{r}
 if (dfd == "locomizer-users") {
   df_pop_dfd_andrew <- read_parquet(paste0(wd, "/data/inputs/locomizer/locomizer-andrew/users.parquet"))
@@ -236,6 +235,7 @@ if (dfd == "locomizer-users") {
 ```{r}
 head(df_pop_dfd_andrew)
 ```
+
 ```{r}
 unique(df_pop_dfd_andrew$file)
 ```
@@ -275,7 +275,6 @@ sf_pop_h3 <- sf_pop_h3 %>%
   select(-area)  
 ```
 
-
 ```{r}
 # Plot the map
 ggplot(data = sf_pop_h3) +
@@ -298,7 +297,6 @@ This is a bigger dataset, where rows are users locations, with lat lon and date 
 dfd <- "locomizer-movs"
 ```
 
-
 ```{r}
 if (dfd == "locomizer-movs") {
   df_mov_dfd_andrew <- read_parquet(paste0(wd, "/data/inputs/locomizer/locomizer-andrew/traces_2021-03-09_2021-03-23.parquet")) #%>% 
@@ -318,7 +316,6 @@ nrow(df_pop_dfd_andrew)
 ```{r}
 length(unique(df_mov_dfd_andrew$userid))
 ```
-
 
 ```{r}
 coords <- df_mov_dfd_andrew %>%
@@ -344,7 +341,6 @@ sf_pop_h3 <- st_as_sf(sf_pop_h3, sf_column_name = "geometry") %>%
 
 ```
 
-
 ```{r}
 # Plot the map
 ggplot(data = sf_pop_h3) +
@@ -358,9 +354,6 @@ ggplot(data = sf_pop_h3) +
   )
 
 ```
-
-
-
 
 ```{r}
 # Aggregate data to count unique users per hour
@@ -383,7 +376,6 @@ ggplot(hourly_unique_users, aes(x = datetime, y = unique_users)) +
   theme_minimal() +
   scale_x_datetime(date_breaks = "48 hours", date_labels = "%b %d")
 ```
-
 
 # Conclusion
 

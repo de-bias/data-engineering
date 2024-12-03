@@ -1,0 +1,238 @@
+---
+title: "explore-data-pickwell"
+format: html
+editor: visual
+---
+
+# Import libraries
+
+```{r}
+library(dplyr)
+library(sf)
+library(ggplot2)
+library(tmap)
+library(viridis)
+library(spdep)
+library(sysfonts)
+library(showtextdb)
+library(classInt)
+library(scales)
+library(forcats)
+library(spgwr)
+library(arrow)
+library(h3)
+library(archive)
+library(ggspatial)
+library(basemapR)
+library(data.table)
+```
+
+# Set themes
+
+```{r}
+#| include = FALSE
+source("./style/data-visualisation_theme.R")
+```
+
+# Data import
+
+## Census and boundaries
+
+```{r}
+wd <- "/Volumes/rdm04/DEBIAS"
+wd_local <- "/Users/carmen/Documents/github/de-bias"
+
+```
+
+```{r}
+df_pop_census <- read.csv(paste0(wd, "/data/inputs/census/census2021-ts/census2021-ts001/census2021-ts001-ltla.csv")) %>% select(date, geography, geography.code, Residence.type..Total..measures..Value) %>% rename("code" = "geography.code", "name" = "geography", "pop" = "Residence.type..Total..measures..Value")
+
+df_boundaries <- st_read(paste0(wd, "/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022.gpkg")) %>% select(LAD21CD, SHAPE) %>% rename("code" = "LAD21CD")
+
+df_boundaries_up <- st_read(paste0(wd, "/data/inputs/geographies/boundaries/RGN_Dec_2021_EN_BFC_2022.gpkg")) %>% st_simplify(preserveTopology = FALSE, dTolerance = 1000)
+
+df_boundaries_hex <- st_read(paste0(wd, "/data/inputs/geographies/hexboundaries/uk-local-authority-districts-2021.geojson")) %>% st_transform(st_crs(df_boundaries_up)) %>% rename("code" = "id")
+```
+
+## Digital trace data from Pickwell
+
+### pickwell
+
+This first line defines the data source to be analysed. We have one option:
+
+-   `pickwell`
+
+```{r}
+dfd <- "pickwell"
+```
+
+```{r}
+if (dfd == "pickwell") {
+  df_traces_dfd <- fread(paste0(wd, "/data/inputs/pickwell/uk/01042021/locations-09-part0000.csv.gz"))
+} 
+```
+
+Below we see the dataframe of active decives
+
+```{r}
+head(df_traces_dfd)
+```
+
+There are as many records as nrow()
+
+```{r}
+nrow(df_traces_dfd)
+```
+
+and the number of unique devices is:
+
+```{r}
+length(unique(df_traces_dfd$device_aid))
+
+
+```
+
+```{r}
+
+coords <- df_traces_dfd[, c("latitude", "longitude")]
+h3_indexes <- geo_to_h3(coords, 6)
+df_traces_dfd$CODE <- h3_indexes
+
+
+# Grouping the rows of the "df_mov" data frame by the "date" column
+sf_traces_h3 <- df_traces_dfd %>%
+  group_by(CODE) %>%
+  summarise(unique_devices = n_distinct(device_aid)) 
+  
+sf_traces_h3$geometry <- h3_to_geo_boundary_sf(sf_traces_h3$CODE)$geometry
+
+sf_traces_h3 <- st_as_sf(sf_traces_h3, sf_column_name = "geometry")
+  
+```
+
+```{r}
+# Plot the map
+ggplot(data = sf_traces_h3) +
+  # base_map(st_bbox(sf_traces_h3), basemap = 'google-terrain', increase_zoom = 2) +
+  geom_sf(aes(fill = unique_devices), size = 0.1) +    
+  scale_fill_viridis_c(option = "viridis") + 
+  # theme_map_tufte() +               
+  labs(
+    fill = "log(Total)",               
+    title = "Map of total footfall for one hour on one day",
+  ) +
+  theme_map_tufte()
+
+
+```
+
+```{r}
+bbox <- st_bbox(st_transform(df_boundaries, "epsg:4326"))
+bbox_sf <- st_as_sfc(bbox)
+```
+
+```{r}
+# Filter geometries that intersect the bounding box
+filtered_sf <- sf_traces_h3[st_intersects(sf_traces_h3, bbox_sf, sparse = FALSE), ]
+
+```
+
+```{r}
+# Plot the map
+ggplot(data = filtered_sf) +
+  # base_map(st_bbox(sf_traces_h3), basemap = 'google-terrain', increase_zoom = 2) +
+  geom_sf(aes(fill = unique_devices), size = 0.1) +    
+  scale_fill_viridis_c(option = "viridis") + 
+  # theme_map_tufte() +               
+  labs(
+    fill = "Unique devices",               
+    title = "Map of total footfall for one hour on one day",
+  ) +
+  theme_map_tufte()
+```
+
+```{r}
+# Initialize an empty list to store results
+results <- list()
+
+# Define folder structure (update with your folder paths)
+base_folder <- paste0(wd, "/data/inputs/pickwell/uk")  # Root folder containing day-wise folders
+day_folders <- list.dirs(base_folder, recursive = FALSE)  # Get day folders
+
+# Iterate over day folders
+for (day_folder in c(day_folders[1])) {
+  
+  # Extract the day's date from the folder name (assumed "DDMMYYYY" format)
+  day_timestamp <- basename(day_folder)  # Folder name is the date
+
+  day_formatted <- paste0(
+    substr(day_timestamp, 5, 8), "-",
+    substr(day_timestamp, 3, 4), "-",
+    substr(day_timestamp, 1, 2)
+  )
+
+  # Get all files for the day that match the pattern for hourly files
+  hour_files <- list.files(day_folder,
+                           full.names = TRUE,
+                           pattern = "^locations-\\d{2}-part\\d{4}\\.csv\\.gz$")
+
+  # Group files by hour (extract the hour part from the file name)
+  hour_groups <- split(hour_files, sub("^locations-(\\d{2})-.*$", "\\1", basename(hour_files)))
+  
+  # Iterate over each group of files corresponding to the same hour
+  for (hour_group in hour_groups) {
+    
+    # Initialize an empty dataframe to combine the files for the current hour
+    combined_data <- NULL
+    
+    # Read each file in the current hour group and combine them
+    for (hour_file in hour_group) {
+      df_traces_dfd <- fread(hour_file)
+      combined_data <- bind_rows(combined_data, df_traces_dfd)
+    }
+
+    # Convert combined data to sf object (assuming latitude and longitude columns exist)
+    sf_traces_dfd <- st_as_sf(combined_data, coords = c("longitude", "latitude"), crs = 4326)
+
+    # Filter data within the bounding box
+    sf_filtered <- sf_traces_dfd[st_intersects(sf_traces_dfd, bbox_sf, sparse = FALSE), ]
+
+    # Compute the number of unique devices for the combined data
+    num_unique_devices <- n_distinct(sf_filtered$device_aid)
+
+    # Extract the hour (use any file in the group to get the hour)
+    hour <- sub("^locations-(\\d{2})-.*$", "\\1", basename(hour_group[[1]]))
+
+    # Combine day and hour into a full timestamp
+    full_timestamp <- paste(day_formatted, hour, sep = " ")
+
+    # Store the results
+    results <- append(results, list(data.frame(
+      timestamp = full_timestamp,
+      unique_devices = num_unique_devices
+    )))
+  }
+}
+
+# Combine all results into a single dataframe
+time_series <- bind_rows(results)
+
+# Preview the result
+head(time_series)
+```
+
+```{r}
+# Create a ggplot
+ggplot(time_series_unique, aes(x = timestamp, y = unique_devices, group = 1)) +
+  geom_line(linewidth = .8, color = "darkblue") +  # Adjust line size and color
+
+  labs(
+    title = "Number of Unique Devices Over Time",
+    x = "Timestamp",
+    y = "Unique Devices"
+  ) +
+  theme_plot_tufte() +  # Minimal theme for clean visualization
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better visibility
+
+```
+
