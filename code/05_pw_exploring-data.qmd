@@ -156,114 +156,133 @@ ggplot(data = filtered_sf) +
 ```
 
 ```{r}
-# Initialize an empty list to store results
-results <- list()
-
-# Define folder structure (update with your folder paths)
-base_folder <- paste0(wd, "/data/inputs/pickwell/uk")  # Root folder containing day-wise folders
-day_folders <- list.dirs(base_folder, recursive = FALSE)  # Get day folders
-
-# Iterate over day folders
-for (day_folder in c(day_folders)) {
-  
-  # Extract the day's date from the folder name (assumed "DDMMYYYY" format)
-  day_timestamp <- basename(day_folder)  # Folder name is the date
-
-  day_formatted <- paste0(
-    substr(day_timestamp, 5, 8), "-",
-    substr(day_timestamp, 3, 4), "-",
-    substr(day_timestamp, 1, 2)
-  )
-
-  # Get all files for the day that match the pattern for hourly files
-  hour_files <- list.files(day_folder,
-                           full.names = TRUE,
-                           pattern = "^locations-\\d{2}-part\\d{4}\\.csv\\.gz$")
-
-  # Group files by hour (extract the hour part from the file name)
-  hour_groups <- split(hour_files, sub("^locations-(\\d{2})-.*$", "\\1", basename(hour_files)))
-  
-  # Iterate over each group of files corresponding to the same hour
-  for (hour_group in hour_groups) {
-    
-    # Initialize an empty dataframe to combine the files for the current hour
-    combined_data <- NULL
-    
-    # Read each file in the current hour group and combine them
-    for (hour_file in hour_group) {
-      df_traces_dfd <- fread(hour_file)
-      combined_data <- bind_rows(combined_data, df_traces_dfd)
-    }
-
-    # Convert combined data to sf object (assuming latitude and longitude columns exist)
-    sf_traces_dfd <- st_as_sf(combined_data, coords = c("longitude", "latitude"), crs = 4326)
-
-    # Filter data within the bounding box
-    sf_filtered <- sf_traces_dfd[st_intersects(sf_traces_dfd, bbox_sf, sparse = FALSE), ]
-
-    # Compute the number of unique devices for the combined data
-    num_unique_devices <- n_distinct(sf_filtered$device_aid)
-    
-    # Compute the number of unique devices for the combined data
-    num_records <- nrow(sf_filtered)
-
-    # Extract the hour (use any file in the group to get the hour)
-    hour <- sub("^locations-(\\d{2})-.*$", "\\1", basename(hour_group[[1]]))
-
-    # Combine day and hour into a full timestamp
-    full_timestamp <- paste(day_formatted, hour, sep = " ")
-
-    # Store the results
-    results <- append(results, list(data.frame(
-      timestamp = full_timestamp,
-      unique_devices = num_unique_devices,
-      records = num_records
-    )))
-  }
-}
-
-# Combine all results into a single dataframe
-time_series <- bind_rows(results)
-
-# Preview the result
-head(time_series)
-```
-
-```{r}
-write.csv(time_series, 
-          paste0(wd_local,
-                 "/data-engineering/code/05_pw_exploring-data_files/time_series.csv", 
-                 row.names = FALSE)
+# UNCOMMENT ONLY IF YOU WANT TO REREAD ALL THE DATA TO GENERATE TIME SERIES - TAKES LONG
+# 
+# results <- list()
+# 
+# base_folder <- paste0(wd, "/data/inputs/pickwell/uk")  
+# day_folders <- list.dirs(base_folder, recursive = FALSE)  
+# 
+# 
+# for (day_folder in c(day_folders)) {
+#   
+#   # Extract the day's date from the folder name ("DDMMYYYY" format)
+#   day_timestamp <- basename(day_folder)  
+# 
+#   day_formatted <- paste0(
+#     substr(day_timestamp, 5, 8), "-",
+#     substr(day_timestamp, 3, 4), "-",
+#     substr(day_timestamp, 1, 2)
+#   )
+# 
+#   # Get all files for the day that match the pattern for hourly files
+#   hour_files <- list.files(day_folder,
+#                            full.names = TRUE,
+#                            pattern = "^locations-\\d{2}-part\\d{4}\\.csv\\.gz$")
+# 
+#   # Group files by hour (extract the hour part from the file name)
+#   hour_groups <- split(hour_files, sub("^locations-(\\d{2})-.*$", "\\1", basename(hour_files)))
+#   
+#   for (hour_group in hour_groups) {
+#     
+#     combined_data <- NULL
+#     
+#     # Read each file in the current hour group and combine them
+#     for (hour_file in hour_group) {
+#       df_traces_dfd <- fread(hour_file)
+#       combined_data <- bind_rows(combined_data, df_traces_dfd)
+#     }
+# 
+#     # Convert combined data to sf object 
+#     sf_traces_dfd <- st_as_sf(combined_data, coords = c("longitude", "latitude"), crs = 4326)
+# 
+#     # Filter data within the UK bounding box
+#     sf_filtered <- sf_traces_dfd[st_intersects(sf_traces_dfd, bbox_sf, sparse = FALSE), ]
+# 
+#     num_unique_devices <- n_distinct(sf_filtered$device_aid)
+#     
+#     num_records <- nrow(sf_filtered)
+# 
+#     hour <- sub("^locations-(\\d{2})-.*$", "\\1", basename(hour_group[[1]]))
+# 
+#     full_timestamp <- paste(day_formatted, hour, sep = " ")
+# 
+#     results <- append(results, list(data.frame(
+#       timestamp = full_timestamp,
+#       unique_devices = num_unique_devices,
+#       records = num_records
+#     )))
+#   }
+# }
+# 
+# time_series <- bind_rows(results)
+# 
+# head(time_series)
+# 
+# write.csv(time_series, 
+#           paste0(wd_local,
+#                  "/data-engineering/code/05_pw_exploring-data_files/time_series.csv"), 
+#                  row.names = FALSE)
 ```
 
 
 ```{r}
-# Create a ggplot
+time_series <- read.csv(paste0(wd_local,
+                 "/data-engineering/code/05_pw_exploring-data_files/time_series.csv"))
+
+time_series$timestamp <- as.POSIXct(time_series$timestamp, format = "%Y-%m-%d %H")
+```
+
+
+
+```{r}
+
+
 ggplot(time_series, aes(x = timestamp, y = unique_devices, group = 1)) +
-  geom_line(linewidth = .8, color = "darkblue") +  # Adjust line size and color
-
+  geom_line(linewidth = 0.8, color = "darkblue") +  
+  scale_x_datetime(
+    breaks = seq(
+      from = as.POSIXct(format(min(time_series$timestamp), "%Y-%m-%d 12:00:00")),
+      to = as.POSIXct(format(max(time_series$timestamp), "%Y-%m-%d 12:00:00")),
+      by = "1 day"
+    ),
+    labels = scales::date_format("%Y-%m-%d")  
+  ) +
   labs(
     title = "Number of Unique Devices Over Time",
-    x = "Timestamp",
+    x = "Date",
     y = "Unique Devices"
   ) +
-  theme_plot_tufte() +  # Minimal theme for clean visualization
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better visibility
+  theme_plot_tufte() +  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
 
 ```
 
 
 ```{r}
-# Create a ggplot
-ggplot(time_series, aes(x = timestamp, y = records, group = 1)) +
-  geom_line(linewidth = .8, color = "darkblue") +  # Adjust line size and color
 
+
+ggplot(time_series, aes(x = timestamp, y = records, group = 1)) +
+  geom_line(linewidth = 0.8, color = "darkblue") +  
+  scale_x_datetime(
+    breaks = seq(
+      from = as.POSIXct(format(min(time_series$timestamp), "%Y-%m-%d 12:00:00")),
+      to = as.POSIXct(format(max(time_series$timestamp), "%Y-%m-%d 12:00:00")),
+      by = "1 day"
+    ),
+    labels = scales::date_format("%Y-%m-%d")  
+  ) +
   labs(
     title = "Number of Records Over Time",
-    x = "Timestamp",
+    x = "Date",
     y = "Records"
   ) +
-  theme_plot_tufte() +  # Minimal theme for clean visualization
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better visibility
+  theme_plot_tufte() +  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
 
 ```
