@@ -110,6 +110,8 @@ sf_traces_h3 <- st_as_sf(sf_traces_h3, sf_column_name = "geometry")
   
 ```
 
+
+
 ```{r}
 # Plot the map
 ggplot(data = sf_traces_h3) +
@@ -118,13 +120,15 @@ ggplot(data = sf_traces_h3) +
   scale_fill_viridis_c(option = "viridis") + 
   # theme_map_tufte() +               
   labs(
-    fill = "log(Total)",               
-    title = "Map of total footfall for one hour on one day",
+    fill = "Unique devices",               
+    title = "Map of unique devices on one day and one hour",
   ) +
   theme_map_tufte()
 
 
 ```
+
+But some data is far from the UK territories. Some in the sea, Falkland islands, Antigua, etc.
 
 ```{r}
 bbox <- st_bbox(st_transform(df_boundaries, "epsg:4326"))
@@ -141,9 +145,9 @@ filtered_sf <- sf_traces_h3[st_intersects(sf_traces_h3, bbox_sf, sparse = FALSE)
 # Plot the map
 ggplot(data = filtered_sf) +
   # base_map(st_bbox(sf_traces_h3), basemap = 'google-terrain', increase_zoom = 2) +
-  geom_sf(aes(fill = unique_devices), size = 0.1) +    
+  geom_sf(aes(fill = log10(unique_devices)), size = 0.1) +    
   scale_fill_viridis_c(option = "viridis") + 
-  # theme_map_tufte() +               
+  theme_map_tufte() +               
   labs(
     fill = "Unique devices",               
     title = "Map of total footfall for one hour on one day",
@@ -160,7 +164,7 @@ base_folder <- paste0(wd, "/data/inputs/pickwell/uk")  # Root folder containing 
 day_folders <- list.dirs(base_folder, recursive = FALSE)  # Get day folders
 
 # Iterate over day folders
-for (day_folder in c(day_folders[1])) {
+for (day_folder in c(day_folders)) {
   
   # Extract the day's date from the folder name (assumed "DDMMYYYY" format)
   day_timestamp <- basename(day_folder)  # Folder name is the date
@@ -199,6 +203,9 @@ for (day_folder in c(day_folders[1])) {
 
     # Compute the number of unique devices for the combined data
     num_unique_devices <- n_distinct(sf_filtered$device_aid)
+    
+    # Compute the number of unique devices for the combined data
+    num_records <- nrow(sf_filtered)
 
     # Extract the hour (use any file in the group to get the hour)
     hour <- sub("^locations-(\\d{2})-.*$", "\\1", basename(hour_group[[1]]))
@@ -209,7 +216,8 @@ for (day_folder in c(day_folders[1])) {
     # Store the results
     results <- append(results, list(data.frame(
       timestamp = full_timestamp,
-      unique_devices = num_unique_devices
+      unique_devices = num_unique_devices,
+      records = num_records
     )))
   }
 }
@@ -222,8 +230,16 @@ head(time_series)
 ```
 
 ```{r}
+write.csv(time_series, 
+          paste0(wd_local,
+                 "/data-engineering/code/05_pw_exploring-data_files/time_series.csv", 
+                 row.names = FALSE)
+```
+
+
+```{r}
 # Create a ggplot
-ggplot(time_series_unique, aes(x = timestamp, y = unique_devices, group = 1)) +
+ggplot(time_series, aes(x = timestamp, y = unique_devices, group = 1)) +
   geom_line(linewidth = .8, color = "darkblue") +  # Adjust line size and color
 
   labs(
@@ -236,3 +252,18 @@ ggplot(time_series_unique, aes(x = timestamp, y = unique_devices, group = 1)) +
 
 ```
 
+
+```{r}
+# Create a ggplot
+ggplot(time_series, aes(x = timestamp, y = records, group = 1)) +
+  geom_line(linewidth = .8, color = "darkblue") +  # Adjust line size and color
+
+  labs(
+    title = "Number of Records Over Time",
+    x = "Timestamp",
+    y = "Records"
+  ) +
+  theme_plot_tufte() +  # Minimal theme for clean visualization
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better visibility
+
+```
