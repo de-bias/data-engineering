@@ -1,0 +1,112 @@
+---
+title: "pickwell-od"
+format: html
+editor: visual
+---
+
+# Import libraries
+
+```{r}
+library(dplyr)
+library(sf)
+library(ggplot2)
+library(tmap)
+library(viridis)
+library(spdep)
+library(sysfonts)
+library(showtextdb)
+library(classInt)
+library(scales)
+library(forcats)
+library(spgwr)
+library(arrow)
+library(h3)
+library(archive)
+library(ggspatial)
+library(basemapR)
+library(data.table)
+library(arrow)
+```
+
+# Set themes
+
+```{r}
+#| include = FALSE
+source("./style/data-visualisation_theme.R")
+```
+
+# Data import
+
+## Census and boundaries
+
+```{r}
+wd <- "/Volumes/rdm04/DEBIAS"
+wd_local <- "/Users/carmen/Documents/github/de-bias"
+
+```
+
+```{r}
+df_pop_census <- read.csv(paste0(wd, "/data/inputs/census/census2021-ts/census2021-ts001/census2021-ts001-ltla.csv")) %>% select(date, geography, geography.code, Residence.type..Total..measures..Value) %>% rename("code" = "geography.code", "name" = "geography", "pop" = "Residence.type..Total..measures..Value")
+
+df_boundaries <- st_read(paste0(wd, "/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022.gpkg")) %>% select(LAD21CD, SHAPE) %>% rename("code" = "LAD21CD")
+
+df_boundaries_up <- st_read(paste0(wd, "/data/inputs/geographies/boundaries/RGN_Dec_2021_EN_BFC_2022.gpkg")) %>% st_simplify(preserveTopology = FALSE, dTolerance = 1000)
+
+df_boundaries_hex <- st_read(paste0(wd, "/data/inputs/geographies/hexboundaries/uk-local-authority-districts-2021.geojson")) %>% st_transform(st_crs(df_boundaries_up)) %>% rename("code" = "id")
+```
+
+## Digital trace data from Pickwell
+
+### pickwell
+
+```{r}
+
+# Set the base directory where the data is stored
+base_folder <- paste0(wd, "/data/inputs/pickwell/uk")  
+
+# Get a list of all subfolders (representing days)
+date_folders <- list.dirs(base_folder, recursive = FALSE)
+
+# Get a list of all subfolders (representing days)
+files_date <- list.files(date_folders[[2]], recursive = FALSE)
+
+dataset <- read_csv_arrow(paste0(date_folders[[2]], "/", files_date[[2]]))
+```
+
+```{r}
+dataset2 <- fread(paste0(date_folders[[2]], "/", files_date[[2]]))
+```
+
+
+
+```{r}
+# Define the root directory of your files
+root_dir <- date_folders[[2]]
+ 
+# Get a list of all subfolders (representing days)
+date_folders <- list.dirs(base_folder, recursive = FALSE)
+
+# Get a list of all subfolders (representing days)
+files_date <- list.files(date_folders[[2]], recursive = FALSE)
+ 
+# Combine all files into a single Arrow Table
+combined_table <- NULL
+ 
+for (file in c(files_date[1])) {
+  # Read each compressed file using Arrow
+  data <- read_csv_arrow(paste0(date_folders[[1]], "/", file))
+  # Append to combined table
+  if (is.null(combined_table)) {
+    combined_table <- data
+  } else {
+    combined_table <- rbind(combined_table, data)
+  }
+}
+ 
+# Save combined data as a Parquet file (optional)
+write_parquet(combined_table, file.path(root_dir, "combined_data.parquet"))
+ 
+# Output the combined data for use in R
+print(combined_table)
+```
+

@@ -110,8 +110,6 @@ sf_traces_h3 <- st_as_sf(sf_traces_h3, sf_column_name = "geometry")
   
 ```
 
-
-
 ```{r}
 # Plot the map
 ggplot(data = sf_traces_h3) +
@@ -225,15 +223,12 @@ ggplot(data = filtered_sf) +
 #                  row.names = FALSE)
 ```
 
-
 ```{r}
 time_series <- read.csv(paste0(wd_local,
                  "/data-engineering/code/05_pw_exploring-data_files/time_series.csv"))
 
 time_series$timestamp <- as.POSIXct(time_series$timestamp, format = "%Y-%m-%d %H")
 ```
-
-
 
 ```{r}
 
@@ -260,7 +255,6 @@ ggplot(time_series, aes(x = timestamp, y = unique_devices, group = 1)) +
 
 
 ```
-
 
 ```{r}
 
