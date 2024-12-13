@@ -47,7 +47,7 @@ wd_local <- "/Users/carmen/Documents/github/de-bias"
 ```
 
 ```{r}
-df_pop_census <- read.csv(paste0(wd, "/data/inputs/census/census2021-ts/census2021-ts001/census2021-ts001-ltla.csv")) %>% select(date, geography, geography.code, Residence.type..Total..measures..Value) %>% rename("code" = "geography.code", "name" = "geography", "pop" = "Residence.type..Total..measures..Value")
+# df_pop_census <- read.csv(paste0(wd, "/data/inputs/census/census2021-ts/census2021-ts001/census2021-ts001-ltla.csv")) %>% select(date, geography, geography.code, Residence.type..Total..measures..Value) %>% rename("code" = "geography.code", "name" = "geography", "pop" = "Residence.type..Total..measures..Value")
 
 df_boundaries <- st_read(paste0(wd, "/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022.gpkg")) %>% select(LAD21CD, SHAPE) %>% rename("code" = "LAD21CD")
 
@@ -60,83 +60,45 @@ df_boundaries_hex <- st_read(paste0(wd, "/data/inputs/geographies/hexboundaries/
 
 ### pickwell
 
-```{r}
-
-# Set the base directory where the data is stored
-base_folder <- paste0(wd, "/data/inputs/pickwell/uk/converted_parquet_2")  
-
-# Get a list of all subfolders (representing days)
-date_folders <- list.dirs(base_folder, recursive = FALSE)
-
-
-csv_ds <- open_dataset("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk/01042021", format = "csv", delimiter = ",")
-
-for (folder in c(date_folders[1])){
-  
-  # Get a list of all subfolders (representing days)
-  files_date <- list.files(folder, recursive = FALSE)
-
-  for (file in files_date){
-    data <- open_dataset(paste0(folder, "/", file), format="parquet")    
-  }
-}
-
-
-
-```
+Read parquet dataset using arrow
 
 ```{r}
-lobstr::obj_size(csv_ds)
+# Remove suffix "test" if working with the full dataset. Test is for a smaller portion (e.g. one day)
+data_parquet <- open_dataset("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet/converted_parquet/part-0.parquet", format="parquet")   
 ```
 
-```{r}
-csv_ds
-```
-
-```{r}
-csv_ds$schema
-
-```
-
-```{r}
-# Define the root directory of your files
-root_dir <- date_folders[[2]]
- 
-# Get a list of all subfolders (representing days)
-date_folders <- list.dirs(base_folder, recursive = FALSE)
-
-# Get a list of all subfolders (representing days)
-files_date <- list.files(date_folders[[2]], recursive = FALSE)
- 
-# Combine all files into a single Arrow Table
-combined_table <- NULL
- 
-for (file in c(files_date[1])) {
-  # Read each compressed file using Arrow
-  data <- read_csv_arrow(paste0(date_folders[[1]], "/", file))
-  # Append to combined table
-  if (is.null(combined_table)) {
-    combined_table <- data
-  } else {
-    combined_table <- rbind(combined_table, data)
-  }
-}
- 
-# Save combined data as a Parquet file (optional)
-write_parquet(combined_table, file.path(root_dir, "combined_data.parquet"))
- 
-# Output the combined data for use in R
-print(combined_table)
-```
-
-```{r}
-data_parquet <- read_parquet("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk/converted_parquet/day=1042021/part-0.parquet", as_data_frame=FALSE)
-```
+Check size of object
 
 ```{r}
 lobstr::obj_size(data_parquet)
 ```
 
+Check schema
+
 ```{r}
 data_parquet$schema
 ```
+# Data processing
+
+Aim: for each unique device, let's extract the place of residence as the MSOA where they've been seen most times between 11pm and 7 am.
+
+The data will be stored in a dataset with two columns: device ID and MSOA of residence.
+
+## Start by identifying the unique devices and storing them in a dataframe
+
+```{r}
+df <- data_parquet %>% 
+  select(device_aid) %>%
+  distinct() %>%
+  filter(!is.na(device_aid)) %>% # Exclude NA values
+  collect() 
+
+```
+
+```{r}
+length(unique(df$device_aid))
+```
+
+Next steps:
+
+- For each unique id, let's filter data_parquet to only include rows with that device. Then filter by the relevant hours (will need to "decode" the timestamp"). Then find the MSOA of each location (or perhaps the hex at a low resolution). Then decide which is the most common one and asign it the MSOA or residence. The most common in "working hours" on weekdays could be the workplace...

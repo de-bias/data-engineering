@@ -1,0 +1,62 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+```{r}
+# Load the Arrow library
+library(arrow)
+```
+
+Initial dataset is partitioned into several hourly csv.gz files per day. We want to read the whole dataset and store it in parquet format.
+
+We define a folder where you we will store the combined dataset in parquet format.
+
+```{r}
+if(!dir.exists("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet")) {
+  dir.create("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet")
+}
+
+# Remove the suffix test if doing it for the whole dataset. Suffix test is to test data processing with only one day of data
+if(!dir.exists("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet/converted_parquet_test")) {
+  dir.create("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet/converted_parquet_test")
+}
+```
+
+Now read the files in .csv.gz and put them together in a parquet.
+
+```{r}  
+# this doesn't yet read the data in, it only creates a connection
+# csv_ds <- open_dataset("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk", 
+#                        format = "csv",
+#                        delimiter = "\tab",
+#                        partitioning = c("day"))
+
+
+# # this reads each csv file in the csv_ds dataset and converts it to a .parquet file
+# write_dataset(csv_ds, 
+#                 "/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet/converted_parquet", 
+#                 format = "parquet")
+# # 
+# #                 , partitioning = c("day"))
+
+```
+
+```{r}
+  
+
+# If running the full dataset, uncoment the code above and comment this
+csv_ds_test <- open_dataset("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk/01042021", 
+                       format = "csv",
+                       delimiter = "\tab")
+
+
+# this reads each csv file in the csv_ds dataset and converts it to a .parquet file
+write_dataset(csv_ds_test, 
+                "/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet/converted_parquet_test", 
+                format = "parquet")
+# 
+#                 , partitioning = c("day"))
+```
+
