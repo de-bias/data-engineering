@@ -26,6 +26,7 @@ library(ggspatial)
 library(basemapR)
 library(data.table)
 library(arrow)
+library(lobstr)
 ```
 
 # Set themes
@@ -62,22 +63,34 @@ df_boundaries_hex <- st_read(paste0(wd, "/data/inputs/geographies/hexboundaries/
 ```{r}
 
 # Set the base directory where the data is stored
-base_folder <- paste0(wd, "/data/inputs/pickwell/uk")  
+base_folder <- paste0(wd, "/data/inputs/pickwell/uk/converted_parquet")  
 
 # Get a list of all subfolders (representing days)
 date_folders <- list.dirs(base_folder, recursive = FALSE)
 
-# Get a list of all subfolders (representing days)
-files_date <- list.files(date_folders[[2]], recursive = FALSE)
 
-dataset <- read_csv_arrow(paste0(date_folders[[2]], "/", files_date[[2]]))
+for (folder in c(date_folders[1])){
+  
+  # Get a list of all subfolders (representing days)
+  files_date <- list.files(folder, recursive = FALSE)
+
+  for (file in files_date){
+    data <- open_dataset(paste0(folder, "/", file))    
+  }
+}
+
+
+
 ```
 
 ```{r}
-dataset2 <- fread(paste0(date_folders[[2]], "/", files_date[[2]]))
+lobstr::obj_size(data)
 ```
 
+```{r}
+data
 
+```
 
 ```{r}
 # Define the root directory of your files
@@ -109,4 +122,3 @@ write_parquet(combined_table, file.path(root_dir, "combined_data.parquet"))
 # Output the combined data for use in R
 print(combined_table)
 ```
-
