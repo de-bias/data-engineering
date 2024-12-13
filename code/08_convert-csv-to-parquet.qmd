@@ -5,8 +5,14 @@ editor: visual
 ---
 
 ```{r}
+
 # Load the Arrow library
 library(arrow)
+
+
+```
+
+```{r}
 
 # Define the root directory of your files
 root_dir <- "/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk/01042021"
@@ -47,20 +53,26 @@ data.frame(file = fhvhv_csv_files, size_Mb = file.size(fhvhv_csv_files) / 1024^2
 ```
 
 ```{r}
-if(!dir.exists("converted_parquet")) {
+if(!dir.exists("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet")) {
+  dir.create("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet")
+}
+
+if(!dir.exists("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet/converted_parquet_2")) {
+  dir.create("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet/converted_parquet_2")
+  }
   
-  dir.create("converted_parquet")}
-  
-  ## this doesn't yet read the data in, it only creates a connection
+# this doesn't yet read the data in, it only creates a connection
 csv_ds <- open_dataset("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk", 
                        format = "csv",
+                       delimiter = "\tab",
                        partitioning = c("day"))
   
-  ## this reads each csv file in the csv_ds dataset and converts it to a .parquet file
-  write_dataset(csv_ds, 
-                "/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk/converted_parquet", 
-                format = "parquet",
-                partitioning = c("day"))
+# this reads each csv file in the csv_ds dataset and converts it to a .parquet file
+write_dataset(csv_ds, 
+                "/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet/converted_parquet_2", 
+                format = "parquet")
+# 
+#                 , partitioning = c("day"))
 
 
 

@@ -63,11 +63,13 @@ df_boundaries_hex <- st_read(paste0(wd, "/data/inputs/geographies/hexboundaries/
 ```{r}
 
 # Set the base directory where the data is stored
-base_folder <- paste0(wd, "/data/inputs/pickwell/uk/converted_parquet")  
+base_folder <- paste0(wd, "/data/inputs/pickwell/uk/converted_parquet_2")  
 
 # Get a list of all subfolders (representing days)
 date_folders <- list.dirs(base_folder, recursive = FALSE)
 
+
+csv_ds <- open_dataset("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk/01042021", format = "csv", delimiter = ",")
 
 for (folder in c(date_folders[1])){
   
@@ -75,7 +77,7 @@ for (folder in c(date_folders[1])){
   files_date <- list.files(folder, recursive = FALSE)
 
   for (file in files_date){
-    data <- open_dataset(paste0(folder, "/", file))    
+    data <- open_dataset(paste0(folder, "/", file), format="parquet")    
   }
 }
 
@@ -84,11 +86,15 @@ for (folder in c(date_folders[1])){
 ```
 
 ```{r}
-lobstr::obj_size(data)
+lobstr::obj_size(csv_ds)
 ```
 
 ```{r}
-data
+csv_ds
+```
+
+```{r}
+csv_ds$schema
 
 ```
 
@@ -121,4 +127,16 @@ write_parquet(combined_table, file.path(root_dir, "combined_data.parquet"))
  
 # Output the combined data for use in R
 print(combined_table)
+```
+
+```{r}
+data_parquet <- read_parquet("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk/converted_parquet/day=1042021/part-0.parquet", as_data_frame=FALSE)
+```
+
+```{r}
+lobstr::obj_size(data_parquet)
+```
+
+```{r}
+data_parquet$schema
 ```
