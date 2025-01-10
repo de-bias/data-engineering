@@ -26,7 +26,7 @@ if(!dir.exists("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet/converted_
 
 Now read the files in .csv.gz and put them together in a parquet.
 
-```{r}  
+```{r}
 # this doesn't yet read the data in, it only creates a connection
 # csv_ds <- open_dataset("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk", 
 #                        format = "csv",
@@ -59,4 +59,3 @@ write_dataset(csv_ds_test,
 # 
 #                 , partitioning = c("day"))
 ```
-

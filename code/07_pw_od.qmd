@@ -49,7 +49,9 @@ wd_local <- "/Users/carmen/Documents/github/de-bias"
 ```{r}
 # df_pop_census <- read.csv(paste0(wd, "/data/inputs/census/census2021-ts/census2021-ts001/census2021-ts001-ltla.csv")) %>% select(date, geography, geography.code, Residence.type..Total..measures..Value) %>% rename("code" = "geography.code", "name" = "geography", "pop" = "Residence.type..Total..measures..Value")
 
-df_boundaries <- st_read(paste0(wd, "/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022.gpkg")) %>% select(LAD21CD, SHAPE) %>% rename("code" = "LAD21CD")
+df_boundaries <- st_read(paste0(wd, "/data/inputs/geographies/boundaries/OA_2021_EW_BFC_V8.gpkg")) %>% select(OA21CD, SHAPE) %>% rename("code" = "OA21CD")
+
+df_boundaries <- st_transform(df_boundaries, st_crs(4326))
 
 df_boundaries_up <- st_read(paste0(wd, "/data/inputs/geographies/boundaries/RGN_Dec_2021_EN_BFC_2022.gpkg")) %>% st_simplify(preserveTopology = FALSE, dTolerance = 1000)
 
@@ -64,7 +66,7 @@ Read parquet dataset using arrow
 
 ```{r}
 # Remove suffix "test" if working with the full dataset. Test is for a smaller portion (e.g. one day)
-data_parquet <- open_dataset("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet/converted_parquet/part-0.parquet", format="parquet")   
+data_parquet <- open_dataset("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet/converted_parquet_test/part-0.parquet", format="parquet")   
 ```
 
 Check size of object
@@ -78,27 +80,85 @@ Check schema
 ```{r}
 data_parquet$schema
 ```
+
 # Data processing
 
 Aim: for each unique device, let's extract the place of residence as the MSOA where they've been seen most times between 11pm and 7 am.
 
 The data will be stored in a dataset with two columns: device ID and MSOA of residence.
 
-## Start by identifying the unique devices and storing them in a dataframe
+## Identify the unique devices and store their IDs in a dataframe
 
 ```{r}
 df <- data_parquet %>% 
   select(device_aid) %>%
+  filter(!is.na(device_aid)) %>% 
   distinct() %>%
-  filter(!is.na(device_aid)) %>% # Exclude NA values
   collect() 
 
 ```
 
+## Create a column to store OA of home location
+
 ```{r}
-length(unique(df$device_aid))
+df$home_hex12 <- NA
 ```
+
+## For each unique device, find home location
+
+```{r}
+#for (i in 1:nrow(df))
+for (i in 1:100)  {
+  # Filter the movement dataset to include data from one device only
+  df_device <- data_parquet %>%
+    select(device_aid, timestamp, longitude, latitude) %>%
+    filter(device_aid == df$device_aid[i]) %>%
+    collect()
+  
+  # Obtain the hour, weekday, and day corresponding to timestamps for the device
+  # Filter to retain only night hours (23:00–7:00)
+  df_device_home <- df_device %>%
+    mutate(
+      hour = as.POSIXlt(as.POSIXct(timestamp, origin = "1970-01-01", tz = "GMT"))$hour,
+      wday = as.POSIXlt(as.POSIXct(timestamp, origin = "1970-01-01", tz = "GMT"))$wday,
+      day = format(as.POSIXlt(timestamp, origin = "1970-01-01", tz = "GMT"), "%Y-%m-%d")
+    ) %>%
+    filter(hour <= 7 | hour >= 23)
+  
+  # Obtain H3 indexes at resolution 12 for each location
+  coords <- df_device_home %>% st_drop_geometry()
+  coords <- coords[, c("latitude", "longitude")]
+  h3_indexes <- geo_to_h3(coords, 12)
+  df_device_home$code_h3 <- h3_indexes
+  
+  # Spatial join to attach OA of record (optional, depends on execution time)
+  # execution_time <- system.time({
+  #   df_device_home <- df_device_home %>%
+  #     st_as_sf(coords = c("longitude", "latitude"), crs = 4326, remove = FALSE) %>%
+  #     st_join(df_boundaries %>% select(code), left = TRUE)
+  # })
+  # print(execution_time)
+  
+  # Determine home location as the most common H3 index
+  most_common_value <- df_device_home$code_h3 %>%
+    table() %>%
+    which.max() %>%
+    names()
+  
+  # Calculate the percentage of rows where the most common value appears
+  most_common_count <- df_device_home %>%
+    filter(code_h3 == most_common_value) %>%
+    nrow()
+  percentage <- (most_common_count / nrow(df_device_home)) * 100
+  
+  # Update 'home_hex12' column in df if conditions are met
+  if (percentage > 50 & most_common_count > 2) {
+    df[i, "home_hex12"] <- most_common_value
+  }
+}
+```
+
 
 Next steps:
 
-- For each unique id, let's filter data_parquet to only include rows with that device. Then filter by the relevant hours (will need to "decode" the timestamp"). Then find the MSOA of each location (or perhaps the hex at a low resolution). Then decide which is the most common one and asign it the MSOA or residence. The most common in "working hours" on weekdays could be the workplace...
+-   Optimize the code. Do this for several days, not just the "test day". Decide whether we filter out the Easter days.
