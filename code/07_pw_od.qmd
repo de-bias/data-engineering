@@ -123,7 +123,7 @@ for (i in 1:100)  {
       wday = as.POSIXlt(as.POSIXct(timestamp, origin = "1970-01-01", tz = "GMT"))$wday,
       day = format(as.POSIXlt(timestamp, origin = "1970-01-01", tz = "GMT"), "%Y-%m-%d")
     ) %>%
-    filter(hour <= 7 | hour >= 23)
+    filter(hour <= 7 | hour >= 22)
   
   # Obtain H3 indexes at resolution 12 for each location
   coords <- df_device_home %>% st_drop_geometry()
@@ -157,7 +157,6 @@ for (i in 1:100)  {
   }
 }
 ```
-
 
 Next steps:
 
