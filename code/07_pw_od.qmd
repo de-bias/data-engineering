@@ -107,8 +107,8 @@ df$home_hex12 <- NA
 ## For each unique device, find home location
 
 ```{r}
-#for (i in 1:nrow(df))
-for (i in 1:100)  {
+#for (i in 1:100) 
+for (i in 1:nrow(df)) {
   # Filter the movement dataset to include data from one device only
   df_device <- data_parquet %>%
     select(device_aid, timestamp, longitude, latitude) %>%
@@ -158,8 +158,8 @@ for (i in 1:100)  {
   }
 }
 
-write_parquet(paste0(wd, "/data/outputs/pw/home-locations/hex/home-location_hex.parquet"))
-saveRDS((paste0(wd, "/data/outputs/pw/home-locations/hex/home-location_hex.rds"))
+write_parquet(df, paste0(wd, "/data/outputs/pw/home-locations/hex/home-location_hex.parquet"))
+saveRDS(df, paste0(wd, "/data/outputs/pw/home-locations/hex/home-location_hex.rds"))
 ```
 
 Next steps:
