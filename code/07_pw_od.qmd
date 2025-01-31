@@ -65,7 +65,7 @@ df_boundaries_hex <- st_read(paste0(wd, "/data/inputs/geographies/hexboundaries/
 Read parquet dataset using arrow
 
 ```{r}
-# Remove suffix "test" if working with the full dataset. Test is for a smaller portion (e.g. one day)
+# Remove suffix "test" from the directory path if working with the full dataset. Test is for a smaller portion (e.g. one day)
 data_parquet <- open_dataset("/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk_parquet/converted_parquet_test/part-0.parquet", format="parquet")   
 ```
 
@@ -83,9 +83,9 @@ data_parquet$schema
 
 # Data processing
 
-Aim: for each unique device, let's extract the place of residence as the MSOA where they've been seen most times between 11pm and 7 am.
+Aim: for each unique device, let's extract the place of residence as the hexagon where they've been seen most times between 10pm and 7 am.
 
-The data will be stored in a dataset with two columns: device ID and MSOA of residence.
+The data will be stored in a dataset with two columns: device ID and hexagon (hex3 12 = 0.000307092 km2) of residence.
 
 ## Identify the unique devices and store their IDs in a dataframe
 
@@ -98,7 +98,7 @@ df <- data_parquet %>%
 
 ```
 
-## Create a column to store OA of home location
+## Create a column to store hex of home location
 
 ```{r}
 df$home_hex12 <- NA
@@ -131,6 +131,7 @@ for (i in 1:100)  {
   h3_indexes <- geo_to_h3(coords, 12)
   df_device_home$code_h3 <- h3_indexes
   
+  # Note: if you would like to use OA, uncomment the code chunk below
   # Spatial join to attach OA of record (optional, depends on execution time)
   # execution_time <- system.time({
   #   df_device_home <- df_device_home %>%
@@ -156,6 +157,9 @@ for (i in 1:100)  {
     df[i, "home_hex12"] <- most_common_value
   }
 }
+
+write_parquet(paste0(wd, "/data/outputs/pw/home-locations/hex/home-location_hex.parquet"))
+saveRDS((paste0(wd, "/data/outputs/pw/home-locations/hex/home-location_hex.rds"))
 ```
 
 Next steps:
