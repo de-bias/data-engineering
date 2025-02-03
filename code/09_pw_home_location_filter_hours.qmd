@@ -15,7 +15,6 @@ library(dplyr)       # For data manipulation
 wd <- "/Volumes/rdm04/DEBIAS"
 ```
 
-
 ```{r}
 relevant_days <-  c(
   "01042021",
@@ -102,4 +101,3 @@ for (day in relevant_days) {
   spark_disconnect(sc)
 }
 ```
-
