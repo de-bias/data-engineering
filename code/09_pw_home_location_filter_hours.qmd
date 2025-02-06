@@ -12,7 +12,12 @@ library(dplyr)       # For data manipulation
 ```
 
 ```{r}
-wd <- "/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk"
+wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
+```
+
+```{r}
+days <-  c(
+  "01042021")
 ```
 
 ```{r}
@@ -51,7 +56,7 @@ for (day in days) {
       memory = TRUE
     )
     
-    # Create a new column 'combo_location' by concatenating 'NAME_2' and 'settlement_type'
+    # Create a new location column labelled `combo_location` based on the hex3_code
     rdd_1 <- df %>% 
       mutate(
         combo_location = code_h3
@@ -69,7 +74,7 @@ for (day in days) {
       sdf_repartition(partitions = 1)
     
     # Set the save location for the output CSV file
-    save_location <- file.path(wd, "home_location_new_1", day)
+    save_location <- file.path(wd, "test", day)
     
     # Write the final DataFrame to CSV
     spark_write_csv(rdd_4, save_location)
@@ -79,5 +84,6 @@ for (day in days) {
 }
 ```
 
-```{}
+```{r}
+df_location <- read.csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/home_location_new_1/01042021/part-00000-4b5d8191-a38c-4989-952a-917163da15b4-c000.csv")
 ```

@@ -1,11 +1,11 @@
 ----------------------------------------------------------------
-Mon Feb 03 17:33:52 GMT 2025:
-Booting Derby version The Apache Software Foundation - Apache Derby - 10.12.1.1 - (1704137): instance a816c00e-0194-cce0-30f0-00000fd2e5e0 
-on database directory memory:/Users/carmen/Documents/github/de-bias/data-engineering/code/databaseName=metastore_db with class loader org.apache.spark.sql.hive.client.IsolatedClientLoader$$anon$1@40213e53 
-Loaded from file:/Users/carmen/spark/spark-2.4.3-bin-hadoop2.7/jars/derby-10.12.1.1.jar
+Thu Feb 06 11:37:22 GMT 2025:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.12.1.1 - (1704137): instance a816c00e-0194-db0c-e47a-00005109cc00 
+on database directory memory:/Users/franciscorowe/Library/CloudStorage/Dropbox/Francisco/Research/grants/2023/digital-footprint-accelerator/debias/github/data-engineering/code/databaseName=metastore_db with class loader org.apache.spark.sql.hive.client.IsolatedClientLoader$$anon$1@583cae39 
+Loaded from file:/Users/franciscorowe/spark/spark-2.4.3-bin-hadoop2.7/jars/derby-10.12.1.1.jar
 java.vendor=Oracle Corporation
 java.runtime.version=1.8.0_441-b07
-user.dir=/Users/carmen/Documents/github/de-bias/data-engineering/code
+user.dir=/Users/franciscorowe/Library/CloudStorage/Dropbox/Francisco/Research/grants/2023/digital-footprint-accelerator/debias/github/data-engineering/code
 os.name=Mac OS X
 os.arch=aarch64
 os.version=15.2
