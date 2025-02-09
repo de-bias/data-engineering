@@ -1,0 +1,57 @@
+---
+title: "Validation 09 code"
+format: html
+editor: visual
+---
+
+# Aim
+
+Verify that the home location code based on Spark (\`09_pw_home_location_filter_hours.qmd\`) does what is expected to do which is to count the number of times a unique device appears in a given hexagon between 23 and 7.
+
+# Read libraries
+
+```{r}
+# Load required package
+library(readr)
+library(h3jsr)
+library(dplyr)
+library(lubridate)
+```
+
+# Read data
+
+```{r}
+data1 <- read_csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/geocoded-hex10/01042021/locations-00-part0000-geocoded.csv.gz", col_names = TRUE)
+
+data2 <- read_csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/geocoded-hex10/01042021/locations-01-part0000-geocoded.csv.gz", col_names = TRUE)
+
+data <- rbind(data1, data2)
+```
+
+```{r}
+head_df <- head(data, 100)
+
+write_csv(head_df, "/Users/franciscorowe/Downloads/data.csv")
+```
+
+```{r}
+# Convert the 'timestamp' column to a datetime object
+data <- data %>%
+  mutate(timestamp = lubridate::as_datetime(timestamp))
+
+# Extract the hour of the timestamp
+data <- data %>%
+  mutate(hour = lubridate::hour(timestamp))
+
+# Filter data between 11 PM (23:00) and 7 AM (07:00)
+filtered_data <- data %>%
+  filter(hour >= 23 | hour < 7)
+
+# Count occurrences of each device_adi during the specified time window
+result <- filtered_data %>%
+  group_by(code_h3, device_aid) %>%
+  summarise(count = n(), .groups = "drop")
+
+# Display the result
+print(result)
+```

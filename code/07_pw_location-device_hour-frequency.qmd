@@ -4,21 +4,27 @@ format: html
 editor: visual
 ---
 
+# Clean environment
+
+```{r}
+rm(list=ls())
+```
+
+# Libraries
+
 ```{r}
 # Load libraries
-library(arrow)        # For working with Apache Arrow
 library(sparklyr)    # For connecting to Spark
 library(dplyr)       # For data manipulation
 ```
+
+# Directory
 
 ```{r}
 wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
 ```
 
-```{r}
-days <-  c(
-  "01042021")
-```
+# Select dates
 
 ```{r}
 days <-  c(
@@ -33,12 +39,21 @@ days <-  c(
 
 ```
 
+Uncomment if testing
+
+```{r}
+# days <-  c(
+#   "01042021")
+```
+
+# Identifying unique device-location pairs
+
 ```{r}
 for (day in days) {
 
     # Configure Spark
     config <- spark_config()
-    config$`sparklyr.shell.driver-memory` <- '8G'
+    config$`sparklyr.shell.driver-memory` <- '40G'
     
     # Connect to Spark
     sc <- spark_connect(master = "local", config = config)
@@ -56,28 +71,28 @@ for (day in days) {
       memory = TRUE
     )
     
-    # Create a new location column labelled `combo_location` based on the hex3_code
+    # Create a new location column labelled `location` based on the hex3_code
     rdd_1 <- df %>% 
       mutate(
-        combo_location = code_h3
+        location = code_h3
       )
     
     # Filter for rows where the time is between '19:00:00' and '6:59:00'
-    rdd_3 <- rdd_1 %>%
-      filter((hour >= 19 & hour <= 23) | (hour >= 0 & hour <= 6))
+    rdd_2 <- rdd_1 %>%
+      filter((hour >= 22 & hour <= 23) | (hour >= 0 & hour <= 6))
     
-    # Group by 'device_aid', 'combo_location' and calculate the total count
-    rdd_4 <- rdd_3 %>% 
-      group_by(device_aid, combo_location) %>% 
+    # Group by 'device_aid', 'location' and calculate the total count
+    rdd_3 <- rdd_2 %>% 
+      group_by(device_aid, location) %>% 
       summarise(total_count = n(), .groups = "drop") %>% 
-      arrange(device_aid, combo_location) %>% 
+      arrange(device_aid, location) %>% 
       sdf_repartition(partitions = 1)
     
     # Set the save location for the output CSV file
-    save_location <- file.path(wd, "test", day)
+    save_location <- file.path(wd, "device-locations_22t07", day)
     
     # Write the final DataFrame to CSV
-    spark_write_csv(rdd_4, save_location)
+    spark_write_csv(rdd_3, save_location)
     
     # Disconnect from Spark
     spark_disconnect(sc)
@@ -85,5 +100,5 @@ for (day in days) {
 ```
 
 ```{r}
-df_location <- read.csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/home_location_new_1/01042021/part-00000-4b5d8191-a38c-4989-952a-917163da15b4-c000.csv")
+# df_location <- read.csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/home_location_new_1/01042021/part-00000-4b5d8191-a38c-4989-952a-917163da15b4-c000.csv")
 ```

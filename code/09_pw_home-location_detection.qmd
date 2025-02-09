@@ -1,0 +1,70 @@
+---
+title: "Identifying home location"
+format: html
+editor: visual
+---
+
+# Clean environment
+
+```{r}
+rm(list=ls())
+```
+
+# Libraries
+
+```{r}
+# Load libraries
+library(sparklyr)    # For connecting to Spark
+library(dplyr)       # For data manipulation
+```
+
+# Directory
+
+```{r}
+wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
+```
+
+```{r}
+# Configure Spark
+config <- spark_config()
+config$`sparklyr.shell.driver-memory` <- '40G'
+
+# Connect to Spark
+sc <- spark_connect(master = "local", config = config)
+```
+
+```{r}
+# Define the data parent folder and file pattern 
+data_parent_folder <- file.path(wd, "device-locations_time-aggregation") 
+file_pattern <- file.path(data_parent_folder, "*.csv")
+
+# Read CSV files into Spark DataFrame
+
+df <- spark_read_csv( sc, path = file_pattern, memory = TRUE )
+
+# Determine if a location is considered home based on the percentage
+
+rdd_1 <- df %>%
+  mutate(
+    is_home = case_when( 
+      percent > 50 & overall_count > 2 ~ TRUE,
+      TRUE ~ FALSE )
+    )
+
+# Filter for rows where 'is_home' is TRUE and repartition the DataFrame
+
+rdd_2 <- rdd_1 %>% 
+  filter(is_home == TRUE) %>% 
+  sdf_repartition(partitions = 1)
+
+save_location <- file.path(wd, "home-location")
+
+# Write the final DataFrame to CSV
+
+spark_write_csv(rdd_2, save_location)
+
+# Disconnect from Spark
+
+spark_disconnect(sc)
+
+```
