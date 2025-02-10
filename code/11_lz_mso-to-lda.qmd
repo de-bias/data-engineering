@@ -1,0 +1,54 @@
+---
+title: "Engineering Locomizer data"
+format: html
+editor: visual
+---
+
+# Clear environment
+```{r}
+rm(list=ls())
+```
+
+# Libraries
+```{r}
+library(tidyverse)
+library(sf)
+```
+# Set directory
+
+```{r}
+wd <- "/Volumes/rdm04/DEBIAS"
+```
+
+
+```{r}
+# read data at MSOA level
+df_htw <- read_csv( paste0(wd, "/data/inputs/locomizer/cheng-et-al_sd/MSOA_county_home_work.gz") )
+df_all <- read_csv( paste0(wd, "/data/inputs/locomizer/cheng-et-al_sd/msoa_ODs_allactivity.gz") )
+df_hex <- read_csv( paste0(wd, "/data/inputs/locomizer/cheng-et-al_sd/hex_ODs_allactivity.gz") )
+
+# read lookup msoa to lda
+lookup <- read_csv( paste0(wd, "/data/inputs/geographies/lookup21ew/OA_to_LSOA_to_MSOA_to_LAD_Dec_2021_EW_V3.csv") ) %>% 
+  select( c(MSOA21CD, MSOA21NM, LAD22CD, LAD22NM) ) %>% 
+  distinct(MSOA21CD, .keep_all = TRUE)
+  
+```
+
+
+
+```{r}
+df_lda_codes <- left_join(df_all, lookup, by = join_by(o_msoa == MSOA21CD ))
+```
+
+
+```{r}
+pop_count <- df_lda_codes %>% 
+  group_by(LAD22CD) %>% 
+  summarise( pop_dfd = sum(num_trips) )
+```
+
+
+```{r}
+write_csv(pop_count, "/Volumes/rdm04/DEBIAS/data/outputs/lz/home-location/lda/home-location-count_lda.csv")
+```
+
