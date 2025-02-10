@@ -4,5 +4,5 @@
 .Ruserdata
 .DS_Store
 code/testing/*
-code/validation/*
+validation/
 .superseded
