@@ -1,0 +1,58 @@
+---
+title: "Analysing work location"
+format: html
+editor: visual
+---
+
+# Clean environment
+
+```{r}
+rm(list=ls())
+```
+
+# Libraries
+
+```{r}
+library(tidyverse)
+library(sf)
+library(h3)
+```
+
+# Read data
+
+```{r}
+df_work_location <- read_csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/location-work/part-00000-c4b5af23-09e5-4e72-b35f-f4058f96a472-c000.csv")
+
+sdf <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
+  st_transform(crs = 4326)
+
+head(df_work_location)
+```
+
+```{r}
+# Create the histogram
+ggplot(df_work_location, aes(x = percent)) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 50) +
+  labs(title = "Histogram of Percent", x = "Percent", y = "Frequency") +
+  theme_minimal()
+```
+
+```{r}
+unique_vec <- unique(df_work_location$device_aid)
+```
+
+```{r}
+coordinates <- h3_to_geo(df_work_location$location) %>% as_data_frame()
+sdf_work_location <- cbind(df_work_location, coordinates) %>% 
+  st_as_sf( coords = c("lng", "lat") , crs = 4326)
+
+sdf_hex3 <- st_join(sdf, 
+                    sdf_work_location,
+                    join = st_contains) 
+
+sdf_lda <- sdf_hex3 %>% 
+  group_by(code) %>% 
+  summarise( work_location_count = n( ))
+
+st_write(sdf_lda, "/Volumes/DEBIAS/data/outputs/mapp1/locations-work/lad/location-work-count_lda.shp")
+```

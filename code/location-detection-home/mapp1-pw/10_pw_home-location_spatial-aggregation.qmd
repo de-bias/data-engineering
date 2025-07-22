@@ -5,11 +5,13 @@ editor: visual
 ---
 
 # Clean environment
+
 ```{r}
 rm(list=ls())
 ```
 
 # Libraries
+
 ```{r}
 library(tidyverse)
 library(sf)
@@ -17,8 +19,9 @@ library(h3)
 ```
 
 # Read data
+
 ```{r}
-df_home_location <- read_csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/home-location/part-00000-22616738-1d83-45b0-9be8-2b01fc18da31-c000.csv")
+df_home_location <- read_csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/location-home/part-00000-22616738-1d83-45b0-9be8-2b01fc18da31-c000.csv")
 
 sdf <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
   st_transform(crs = 4326)
@@ -33,10 +36,10 @@ ggplot(df_home_location, aes(x = percent)) +
   labs(title = "Histogram of Percent", x = "Percent", y = "Frequency") +
   theme_minimal()
 ```
+
 ```{r}
 unique_vec <- unique(df_home_location$device_aid)
 ```
-
 
 ```{r}
 coordinates <- h3_to_geo(df_home_location$location) %>% as_data_frame()
@@ -51,6 +54,5 @@ sdf_lda <- sdf_hex3 %>%
   group_by(code) %>% 
   summarise( home_location_count = n( ))
 
-st_write(sdf_lda, "/Volumes/DEBIAS/data/outputs/pw/home-locations/hex/home-location-count_lda.shp")
+st_write(sdf_lda, "/Volumes/DEBIAS/data/outputs/pw/locations-home/lad/home-location-count_lda.shp")
 ```
-

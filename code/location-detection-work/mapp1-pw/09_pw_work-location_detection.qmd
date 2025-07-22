@@ -1,5 +1,5 @@
 ---
-title: "Identifying home location"
+title: "Identifying work location"
 format: html
 editor: visual
 ---
@@ -35,7 +35,7 @@ sc <- spark_connect(master = "local", config = config)
 
 ```{r}
 # Define the data parent folder and file pattern 
-data_parent_folder <- file.path(wd, "device-locations_time-aggregation") 
+data_parent_folder <- file.path(wd, "device-locations-work_time-aggregation") 
 file_pattern <- file.path(data_parent_folder, "*.csv")
 
 # Read CSV files into Spark DataFrame
@@ -57,7 +57,7 @@ rdd_2 <- rdd_1 %>%
   filter(is_home == TRUE) %>% 
   sdf_repartition(partitions = 1)
 
-save_location <- file.path(wd, "home-location")
+save_location <- file.path(wd, "location-work")
 
 # Write the final DataFrame to CSV
 

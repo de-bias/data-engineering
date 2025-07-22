@@ -1,0 +1,72 @@
+---
+title: "Measuring overall time share of a device-location pair"
+format: html
+editor: visual
+---
+
+# Clean environment
+
+```{r}
+rm(list=ls())
+```
+
+# Libraries
+
+```{r}
+# Load libraries
+library(sparklyr)    # For connecting to Spark
+library(dplyr)       # For data manipulation
+```
+
+# Directory
+
+```{r}
+wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
+```
+
+```{r}
+# Configure Spark
+config <- spark_config()
+config$`sparklyr.shell.driver-memory` <- '40G'
+
+# Connect to Spark
+sc <- spark_connect(master = "local", config = config)
+```
+
+```{r}
+# Define the data parent folder and file pattern
+data_parent_folder <- file.path(wd, "device-locations_22t07")
+file_pattern <- file.path(data_parent_folder, "*", "*.csv")
+
+# Read CSV files into Spark DataFrame
+df <- spark_read_csv(
+  sc,
+  path = file_pattern,
+  memory = TRUE
+)
+
+# Group by 'device_aid' and 'location', and calculate the sum of 'total_count'
+rdd_1 <- df %>% 
+  group_by(device_aid, location) %>% 
+  summarise(overall_count = sum(total_count), .groups = "drop") %>% 
+  arrange(device_aid, location)
+
+# Group by 'device_aid', and calculate the percentage based on 'overall_count'
+rdd_2 <- rdd_1 %>% 
+  group_by(device_aid) %>% 
+  mutate(percent = 100 * (overall_count / sum(overall_count))) %>% 
+  ungroup() %>% 
+  arrange(device_aid, location)
+
+save_location <- file.path(wd, "device-locations-home_time-aggregation")
+
+# Write the final DataFrame to CSV
+spark_write_csv(rdd_2, save_location)
+
+# Disconnect from Spark
+spark_disconnect(sc)
+```
+
+```{r}
+# df_location <- read.csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/device-locations_time-aggregation/part-00000-5bc1254d-be52-46de-a616-4ecc418aaee2-c000.csv")
+```
