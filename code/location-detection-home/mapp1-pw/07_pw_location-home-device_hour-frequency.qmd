@@ -48,6 +48,58 @@ Uncomment if testing
 
 # Identifying unique device-location pairs
 
+## Parallelised
+
+```{r}
+# Set parallel backend for macOS
+plan(multisession, workers = parallel::detectCores())
+```
+
+```{r}
+# Function to process a single day
+process_day <- function(day) {
+  date_obj <- as.Date(day, format = "%d%m%Y")
+  day_name <- weekdays(date_obj)
+  
+  message(sprintf("Processing day: %s (%s)", day, day_name))
+  
+  # Spark config
+  config <- spark_config()
+  config$`sparklyr.shell.driver-memory` <- '40G'
+  
+  # Connect to Spark
+  sc <- spark_connect(master = "local", config = config)
+  
+  # File paths
+  data_parent_folder <- file.path(wd, "geocoded-hex10", day)
+  file_pattern <- file.path(data_parent_folder, "*-geocoded.csv.gz")
+  
+  # Read and transform data
+  df <- spark_read_csv(sc, path = file_pattern, memory = TRUE)
+  
+  rdd_3 <- df %>%
+    mutate(location = code_h3) %>%
+    filter((hour >= 22 & hour <= 23) | (hour >= 0 & hour <= 6)) %>%
+    group_by(device_aid, location) %>%
+    summarise(total_count = n(), .groups = "drop") %>%
+    arrange(device_aid, location) %>%
+    sdf_repartition(partitions = 1)
+  
+  # Save output
+  save_location <- file.path(wd, "device-locations_22t07", day)
+  spark_write_csv(rdd_3, save_location)
+  
+  spark_disconnect(sc)
+  
+  return(day)
+}
+
+# Run all days in parallel
+results <- future_lapply(days, process_day)
+```
+
+## Non-parallelised
+
 ```{r}
 for (day in days) {
 

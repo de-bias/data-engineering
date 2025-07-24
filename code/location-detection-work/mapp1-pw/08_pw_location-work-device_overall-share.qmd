@@ -16,6 +16,8 @@ rm(list=ls())
 # Load libraries
 library(sparklyr)    # For connecting to Spark
 library(dplyr)       # For data manipulation
+library(future)
+library(future.apply)
 ```
 
 # Directory
@@ -24,6 +26,60 @@ library(dplyr)       # For data manipulation
 wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
 ```
 
+# Share of counts in each location for each device
+
+## Parallelised
+
+```{r}
+# Set parallel plan
+plan(multisession, workers = parallel::detectCores())
+
+parent_path <- file.path(wd, "device-locations_09t16")
+
+# List all subfolders (days)
+day_folders <- list.dirs(parent_path, full.names = TRUE, recursive = FALSE)
+
+# Function to process each folder individually
+process_folder <- function(folder_path) {
+  config <- spark_config()
+  config$`sparklyr.shell.driver-memory` <- '40G'  # reduce if many workers
+  
+  sc <- spark_connect(master = "local", config = config)
+  
+  df <- spark_read_csv(sc, path = file.path(folder_path, "*.csv"), memory = TRUE)
+  
+  out <- df %>%
+    group_by(device_aid, location) %>%
+    summarise(total_count = sum(total_count, na.rm = TRUE), .groups = "drop") %>%
+    collect()
+  
+  spark_disconnect(sc)
+  return(out)
+}
+
+# Run in parallel for each day-folder
+partial_results <- future_lapply(day_folders, process_folder)
+
+# Combine all into one data frame
+combined <- bind_rows(partial_results)
+
+# Final aggregation and percent calc
+final_result <- combined %>%
+  group_by(device_aid, location) %>%
+  summarise(overall_count = sum(total_count), .groups = "drop") %>%
+  group_by(device_aid) %>%
+  mutate(percent = 100 * (overall_count / sum(overall_count))) %>%
+  ungroup() %>%
+  arrange(device_aid, location)
+
+# Save result to CSV
+write.csv(final_result, file.path(wd, "device-locations-home_time-aggregation_parallel/device-locations-work_time-aggregation.csv"), row.names = FALSE)
+
+```
+
+
+## Non-parallelised
+
 ```{r}
 # Configure Spark
 config <- spark_config()
@@ -31,9 +87,7 @@ config$`sparklyr.shell.driver-memory` <- '40G'
 
 # Connect to Spark
 sc <- spark_connect(master = "local", config = config)
-```
 
-```{r}
 # Define the data parent folder and file pattern
 data_parent_folder <- file.path(wd, "device-locations_09t16")
 file_pattern <- file.path(data_parent_folder, "*", "*.csv")

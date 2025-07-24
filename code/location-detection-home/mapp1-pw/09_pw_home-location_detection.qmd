@@ -36,6 +36,7 @@ sc <- spark_connect(master = "local", config = config)
 ```{r}
 # Define the data parent folder and file pattern 
 data_parent_folder <- file.path(wd, "device-locations-home_time-aggregation") 
+
 file_pattern <- file.path(data_parent_folder, "*.csv")
 
 # Read CSV files into Spark DataFrame
