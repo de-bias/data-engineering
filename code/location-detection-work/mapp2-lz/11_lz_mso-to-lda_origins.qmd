@@ -55,7 +55,7 @@ pop_count <- df_lda_codes %>%
 ```
 
 ```{r}
-write_csv(pop_count, "/Volumes/rdm04/DEBIAS/data/outputs/mapp2/home-locations/lad/home-location-count_lad.csv")
+write_csv(pop_count, "/Volumes/rdm04/DEBIAS/data/outputs/mapp2/locations-origin/lad/location-origin-count_lad.csv")
 ```
 
 # Use home to work data
@@ -75,5 +75,5 @@ pop_count <- df_lda_codes %>%
 ```
 
 ```{r}
-write_csv(pop_count, "/Volumes/rdm04/DEBIAS/data/outputs/mapp2/home-locations/lad/home-location-count_lad_htw.csv")
+write_csv(pop_count, "/Volumes/rdm04/DEBIAS/data/outputs/mapp2/locations-origin/lad/location-home-count_lad_htw.csv")
 ```
