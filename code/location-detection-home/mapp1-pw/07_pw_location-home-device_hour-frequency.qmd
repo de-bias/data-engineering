@@ -51,11 +51,12 @@ Uncomment if testing
 ## Parallelised
 
 ```{r}
+# Start timer
+start_parallel <- Sys.time()
+
 # Set parallel backend for macOS
 plan(multisession, workers = parallel::detectCores())
-```
 
-```{r}
 # Function to process a single day
 process_day <- function(day) {
   date_obj <- as.Date(day, format = "%d%m%Y")
@@ -65,7 +66,7 @@ process_day <- function(day) {
   
   # Spark config
   config <- spark_config()
-  config$`sparklyr.shell.driver-memory` <- '40G'
+  config$`sparklyr.shell.driver-memory` <- '10G'
   
   # Connect to Spark
   sc <- spark_connect(master = "local", config = config)
@@ -86,7 +87,7 @@ process_day <- function(day) {
     sdf_repartition(partitions = 1)
   
   # Save output
-  save_location <- file.path(wd, "device-locations_22t07", day)
+  save_location <- file.path(wd, "device-locations_22t07_parallelised", day)
   spark_write_csv(rdd_3, save_location)
   
   spark_disconnect(sc)
@@ -96,11 +97,21 @@ process_day <- function(day) {
 
 # Run all days in parallel
 results <- future_lapply(days, process_day)
+
+# End timer
+end_parallel <- Sys.time()
+
+# Report
+parallel_duration <- end_parallel - start_parallel
+print(glue::glue("Parallelised version took: {round(parallel_duration, 2)} seconds"))
 ```
 
 ## Non-parallelised
 
 ```{r}
+# Start timer
+start_parallel <- Sys.time()
+
 for (day in days) {
 
     # Configure Spark
@@ -141,7 +152,7 @@ for (day in days) {
       sdf_repartition(partitions = 1)
     
     # Set the save location for the output CSV file
-    save_location <- file.path(wd, "device-locations_22t07", day)
+    save_location <- file.path(wd, "device-locations_22t07_non-parallelised", day)
     
     # Write the final DataFrame to CSV
     spark_write_csv(rdd_3, save_location)
@@ -149,6 +160,13 @@ for (day in days) {
     # Disconnect from Spark
     spark_disconnect(sc)
 }
+
+# End timer
+end_parallel <- Sys.time()
+
+# Report
+parallel_duration <- end_parallel - start_parallel
+print(glue::glue("Non-parallelised version took: {round(parallel_duration, 2)} seconds"))
 ```
 
 ```{r}

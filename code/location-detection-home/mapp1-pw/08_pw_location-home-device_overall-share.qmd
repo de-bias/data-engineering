@@ -31,10 +31,13 @@ wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
 ## Parallelised
 
 ```{r}
+# Start timer
+start_parallel <- Sys.time()
+
 # Set parallel plan
 plan(multisession, workers = parallel::detectCores())
 
-parent_path <- file.path(wd, "device-locations_22t07")
+parent_path <- file.path(wd, "device-locations_22t07_parallelised")
 
 # List all subfolders (days)
 day_folders <- list.dirs(parent_path, full.names = TRUE, recursive = FALSE)
@@ -77,15 +80,24 @@ final_result <- combined %>%
 # Save final result
 write.csv(
   final_result,
-  file.path(wd, "device-locations-home_time-aggregation_parallel/device-locations-home_time-aggregation.csv"),
+  file.path(wd, "device-locations-home_time-aggregation_parallelised/device-locations-home_time-aggregation.csv"),
   row.names = FALSE
 )
-```
 
+# End timer
+end_parallel <- Sys.time()
+
+# Report
+parallel_duration <- end_parallel - start_parallel
+print(glue::glue("Parallelised version took: {round(parallel_duration, 2)} seconds"))
+```
 
 ## Non-parallelised
 
 ```{r}
+# Start timer
+start_parallel <- Sys.time()
+
 # Configure Spark
 config <- spark_config()
 config$`sparklyr.shell.driver-memory` <- '40G'
@@ -94,7 +106,7 @@ config$`sparklyr.shell.driver-memory` <- '40G'
 sc <- spark_connect(master = "local", config = config)
 
 # Define the data parent folder and file pattern
-data_parent_folder <- file.path(wd, "device-locations_22t07")
+data_parent_folder <- file.path(wd, "device-locations_22t07_non-parallelised")
 file_pattern <- file.path(data_parent_folder, "*", "*.csv")
 
 # Read CSV files into Spark DataFrame
@@ -117,13 +129,20 @@ rdd_2 <- rdd_1 %>%
   ungroup() %>% 
   arrange(device_aid, location)
 
-save_location <- file.path(wd, "device-locations-home_time-aggregation")
+save_location <- file.path(wd, "device-locations-home_time-aggregation_non-parallelised")
 
 # Write the final DataFrame to CSV
 spark_write_csv(rdd_2, save_location)
 
 # Disconnect from Spark
 spark_disconnect(sc)
+
+# End timer
+end_parallel <- Sys.time()
+
+# Report
+parallel_duration <- end_parallel - start_parallel
+print(glue::glue("Non-parallelised version took: {round(parallel_duration, 2)} seconds"))
 ```
 
 ```{r}
