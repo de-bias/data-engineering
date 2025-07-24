@@ -48,15 +48,17 @@ df <- spark_read_csv(
 # Group by 'device_aid' and 'location', and calculate the sum of 'total_count'
 rdd_1 <- df %>% 
   group_by(device_aid, location) %>% 
-  summarise(overall_count = sum(total_count), .groups = "drop") %>% 
+  summarise(overall_count = sum(total_count, na.rm = TRUE), .groups = "drop") %>% 
   arrange(device_aid, location)
 
 # Group by 'device_aid', and calculate the percentage based on 'overall_count'
 rdd_2 <- rdd_1 %>% 
   group_by(device_aid) %>% 
   mutate(percent = 100 * (overall_count / sum(overall_count))) %>% 
-  ungroup() %>% 
-  arrange(device_aid, location)
+  ungroup() 
+
+# Now arrange
+rdd_2 <- rdd_2 %>% arrange(device_aid, location)
 
 save_location <- file.path(wd, "device-locations-work_time-aggregation")
 
