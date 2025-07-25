@@ -16,6 +16,9 @@ rm(list=ls())
 # Load libraries
 library(sparklyr)    # For connecting to Spark
 library(dplyr)       # For data manipulation
+library(glue)
+library(future)
+library(future.apply)
 ```
 
 # Directory
@@ -50,63 +53,54 @@ Uncomment if testing
 
 ## Parallelised
 
+Processing took 18.85 seconds
+
 ```{r}
-# Start timer
-start_parallel <- Sys.time()
+start_time <- Sys.time()
 
-# Set parallel backend for macOS
-plan(multisession, workers = parallel::detectCores())
+config <- spark_config()
+config$`sparklyr.shell.driver-memory` <- '40G'
+sc <- spark_connect(master = "local[*]", config = config)
 
-# Function to process a single day
-process_day <- function(day) {
-  date_obj <- as.Date(day, format = "%d%m%Y")
-  day_name <- weekdays(date_obj)
-  
-  message(sprintf("Processing day: %s (%s)", day, day_name))
-  
-  # Spark config
-  config <- spark_config()
-  config$`sparklyr.shell.driver-memory` <- '10G'
-  
-  # Connect to Spark
-  sc <- spark_connect(master = "local", config = config)
-  
-  # File paths
-  data_parent_folder <- file.path(wd, "geocoded-hex10", day)
-  file_pattern <- file.path(data_parent_folder, "*-geocoded.csv.gz")
-  
-  # Read and transform data
-  df <- spark_read_csv(sc, path = file_pattern, memory = TRUE)
-  
-  rdd_3 <- df %>%
-    mutate(location = code_h3) %>%
-    filter((hour >= 22 & hour <= 23) | (hour >= 0 & hour <= 6)) %>%
-    group_by(device_aid, location) %>%
-    summarise(total_count = n(), .groups = "drop") %>%
-    arrange(device_aid, location) %>%
-    sdf_repartition(partitions = 1)
-  
-  # Save output
-  save_location <- file.path(wd, "device-locations_22t07_parallelised", day)
-  spark_write_csv(rdd_3, save_location)
-  
-  spark_disconnect(sc)
-  
-  return(day)
-}
+num_cores <- parallel::detectCores()
+optimal_parts <- num_cores * 3
 
-# Run all days in parallel
-results <- future_lapply(days, process_day)
+file_pattern <- file.path(wd, "geocoded-hex10", "*", "*-geocoded.csv.gz")
+df_all <- spark_read_csv(
+  sc,
+  path = file_pattern,
+  memory = TRUE,
+  repartition = optimal_parts
+) %>%
+  select(device_aid, code_h3, hour) %>%  # drop unused columns
+  mutate(day = regexp_extract(input_file_name(), ".*/geocoded-hex10/([^/]+)/.*", 1))
 
-# End timer
-end_parallel <- Sys.time()
+df_all <- df_all %>%
+  mutate(day = regexp_extract(input_file_name(), ".*/geocoded-hex10/([^/]+)/.*", 1))
 
-# Report
-parallel_duration <- end_parallel - start_parallel
-print(glue::glue("Parallelised version took: {round(parallel_duration, 2)} seconds"))
+rdd_all <- df_all %>%
+  mutate(location = code_h3) %>%
+  filter(hour >= 22 | hour <= 6) %>%
+  group_by(day, device_aid, location) %>%
+  summarise(total_count = n(), .groups = "drop") %>%
+  sdf_repartition(partitions = optimal_parts)  # for writing efficiency
+
+spark_write_csv(
+  rdd_all,
+  path = file.path(wd, "device-locations_22t07_parallelised"),
+  partition_by = "day",
+  mode = "overwrite",
+  compression = "gzip"  # smaller + faster writing
+)
+
+spark_disconnect(sc)
+
+print(glue("Processing took: {round(Sys.time() - start_time, 2)} seconds"))
 ```
 
 ## Non-parallelised
+
+Processing took 16.64 seconds
 
 ```{r}
 # Start timer
