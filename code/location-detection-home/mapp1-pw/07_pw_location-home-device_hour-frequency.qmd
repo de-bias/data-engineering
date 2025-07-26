@@ -168,7 +168,7 @@ print(glue::glue("Non-parallelised version took: {round(parallel_duration, 2)} s
 # df_location <- read.csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/home_location_new_1/01042021/part-00000-4b5d8191-a38c-4989-952a-917163da15b4-c000.csv")
 ```
 
-# Alternative
+## Alternative
 
 ```{r}
 parquet_path <- file.path(wd, "geocoded-hex10-parquet")
@@ -197,8 +197,8 @@ choose_partitions <- function(path, cores) {
   size_gb <- total_size / (1024^3)
   target_parts <- ceiling((size_gb * 1024) / 128)
   partitions <- min(max(target_parts, cores), cores * 5)
-  message(glue("📦 Data size: {round(size_gb, 2)} GB"))
-  message(glue("🖥  Using {cores} cores, chosen {partitions} partitions"))
+  message(glue("Data size: {round(size_gb, 2)} GB"))
+  message(glue("Using {cores} cores, chosen {partitions} partitions"))
   return(as.integer(partitions))   # <<--- Ensure return is integer!
 }
 

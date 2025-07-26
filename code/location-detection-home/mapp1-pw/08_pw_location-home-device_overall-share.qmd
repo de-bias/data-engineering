@@ -16,8 +16,10 @@ rm(list=ls())
 # Load libraries
 library(sparklyr)    # For connecting to Spark
 library(dplyr)       # For data manipulation
+library(glue)
 library(future)
 library(future.apply)
+library(fs)   # for file size detection
 ```
 
 # Directory
@@ -147,4 +149,31 @@ print(glue::glue("Non-parallelised version took: {round(parallel_duration, 2)} s
 
 ```{r}
 # df_location <- read.csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/device-locations_time-aggregation/part-00000-5bc1254d-be52-46de-a616-4ecc418aaee2-c000.csv")
+```
+
+## Alternative
+
+```{r}
+parquet_path <- file.path(wd, "device-locations_22t07_alternative_parquettt")
+if (dir_exists(parquet_path)) dir_delete(parquet_path)  # Clean up before writing
+
+# Configure Spark
+config <- spark_config()
+config$`sparklyr.shell.driver-memory` <- '8G'
+
+# Connect to Spark
+sc <- spark_connect(master = "local[*]", config = config)
+
+df_csv <- spark_read_csv(
+  sc,
+  path = file.path(wd, "device-locations_22t07_alternative", "*", "*.csv"),
+  memory = TRUE
+) 
+
+spark_write_parquet(df_csv, path = parquet_path, mode = "overwrite")
+
+spark_disconnect(sc)
+
+# Verify Parquet files created
+print(list.files(parquet_path, recursive = TRUE))
 ```
