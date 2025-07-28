@@ -171,21 +171,31 @@ print(glue::glue("Non-parallelised version took: {round(parallel_duration, 2)} s
 ## Alternative
 
 ```{r}
-parquet_path <- file.path(wd, "geocoded-hex10-parquet")
+parquet_path <- file.path(wd, "geocoded-hex10-parquet-test")
 if (dir_exists(parquet_path)) dir_delete(parquet_path)  # Clean up before writing
+
+start_time <- Sys.time()
+
+config <- spark_config()
+config$`sparklyr.shell.driver-memory` <- '8G'
+sc <- spark_connect(master = "local[*]", config = config)
 
 df_csv <- spark_read_csv(
   sc,
-  path = file.path(wd, "geocoded-hex10", "*", "*-geocoded.csv.gz"),
+  path = file.path(wd, "geocoded-hex10_test", "*", "*-geocoded.csv.gz"),
   memory = TRUE
 ) %>%
   select(device_aid, code_h3, hour) %>%
-  mutate(day = regexp_extract(input_file_name(), ".*/geocoded-hex10/([^/]+)/.*", 1))
+  mutate(day = regexp_extract(input_file_name(), ".*/geocoded-hex10_test/([^/]+)/.*", 1))
 
 spark_write_parquet(df_csv, path = parquet_path, mode = "overwrite")
 
+spark_disconnect(sc)
+
 # Verify Parquet files created
 print(list.files(parquet_path, recursive = TRUE))
+
+end_time <- Sys.time()
 ```
 
 ```{r}
@@ -228,6 +238,8 @@ spark_write_csv(
   mode = "overwrite",
   compression = "gzip"
 )
+
+
 
 end_time <- Sys.time()
 message(glue("🏁 TOTAL runtime: {round(end_time - start_time, 2)} seconds"))
