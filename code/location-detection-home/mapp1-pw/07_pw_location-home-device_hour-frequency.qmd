@@ -183,13 +183,13 @@ df_csv <- spark_read_csv(
   sc,
   path = file.path(wd, "geocoded-hex10", "*", "*-geocoded.csv.gz"),
   memory = FALSE
-) %>%
+  ) %>%
   select(device_aid, code_h3, hour) %>%
   mutate(day = regexp_extract(input_file_name(), ".*/geocoded-hex10/([^/]+)/.*", 1)) 
+
 spark_write_parquet(df_csv, path = parquet_path, mode = "overwrite")
 
 ```
-
 
 ```{r}
 
@@ -237,5 +237,8 @@ end_time <- Sys.time()
 message(glue("TOTAL runtime: {round(end_time - start_time, 2)} seconds"))
 ```
 
-
-
+```         
+Data size: 0 GB
+Using 10 cores, chosen 10 partitions
+TOTAL runtime: 5.95 seconds
+```
