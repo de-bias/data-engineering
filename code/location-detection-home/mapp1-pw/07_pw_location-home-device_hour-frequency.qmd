@@ -175,39 +175,18 @@ print(glue::glue("Non-parallelised version took: {round(parallel_duration, 2)} s
 parquet_path <- file.path(wd, "geocoded-hex10-parquet")
 if (dir_exists(parquet_path)) dir_delete(parquet_path)  # Clean up before writing
 
-
 config <- spark_config()
-config$`sparklyr.shell.driver-memory` <- '8G'
+config$`sparklyr.shell.driver-memory` <- '40G'
 sc <- spark_connect(master = "local", config = config)
 
 df_csv <- spark_read_csv(
   sc,
   path = file.path(wd, "geocoded-hex10", "*", "*-geocoded.csv.gz"),
-  memory = TRUE
+  memory = FALSE
 ) %>%
   select(device_aid, code_h3, hour) %>%
-  mutate(day = regexp_extract(input_file_name(), ".*/geocoded-hex10/([^/]+)/.*", 1))
-
+  mutate(day = regexp_extract(input_file_name(), ".*/geocoded-hex10/([^/]+)/.*", 1)) 
 spark_write_parquet(df_csv, path = parquet_path, mode = "overwrite")
-
-# Verify Parquet files created
-print(list.files(parquet_path, recursive = TRUE))
-```
-
-
-```{r}
-config <- spark_config()
-config$`sparklyr.shell.driver-memory` <- '8G'
-sc <- spark_connect(master = "local[*]", config = config)
-
-
-df_parquet <- spark_read_parquet(
-  sc,
-  name = "df_parquet",  # name of the Spark DataFrame (internal)
-  path = "/Users/carmen/Desktop/DEBIAS/geocoded-hex10-parquet-test-fr",  # folder or single .parquet file
-  memory = TRUE  # load into Spark memory (set FALSE if too big)
-)
-
 
 ```
 
@@ -227,7 +206,7 @@ choose_partitions <- function(path, cores) {
 }
 
 num_cores <- parallel::detectCores()
-optimal_parts <- choose_partitions(file.path(wd, "geocoded-hex10"), num_cores)
+optimal_parts <- choose_partitions(file.path(wd, "geocoded-hex10-parquet"), num_cores)
 optimal_parts <- as.integer(optimal_parts)   # <<--- Safety, force integer again
 
 start_time <- Sys.time()
@@ -243,18 +222,20 @@ rdd_all <- df_all %>%
   summarise(total_count = n(), .groups = "drop")
 
 # Write output, partitioned by day, compressed
-output_path <- file.path(wd, "device-locations_22t07_alternative")
+output_path <- file.path(wd, "device-locations_22t07_parquet")
 if (dir_exists(output_path)) fs::dir_delete(output_path)
-spark_write_csv(
+spark_write_parquet(
   rdd_all,
   path = output_path,
   partition_by = "day",
-  mode = "overwrite",
-  compression = "gzip"
+  mode = "overwrite"
 )
 
-
+spark_disconnect(sc)
 
 end_time <- Sys.time()
-message(glue("🏁 TOTAL runtime: {round(end_time - start_time, 2)} seconds"))
+message(glue("TOTAL runtime: {round(end_time - start_time, 2)} seconds"))
 ```
+
+
+
