@@ -1,10 +1,10 @@
 ----------------------------------------------------------------
-Mon Jul 28 11:12:46 BST 2025:
-Booting Derby version The Apache Software Foundation - Apache Derby - 10.12.1.1 - (1704137): instance a816c00e-0198-5085-3d67-0000131839e0 
-on database directory memory:/Users/carmen/Documents/github/de-bias/data-engineering/code/location-detection-home/mapp1-pw/databaseName=metastore_db with class loader org.apache.spark.sql.hive.client.IsolatedClientLoader$$anon$1@74d71633 
-Loaded from file:/Users/carmen/spark/spark-2.4.3-bin-hadoop2.7/jars/derby-10.12.1.1.jar
-java.vendor=Oracle Corporation
-java.runtime.version=1.8.0_451-b10
+Mon Jul 28 20:33:07 BST 2025:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.14.2.0 - (1828579): instance a816c00e-0198-5286-42c8-000027daf1f0 
+on database directory memory:/Users/carmen/Documents/github/de-bias/data-engineering/code/location-detection-home/mapp1-pw/databaseName=metastore_db with class loader jdk.internal.loader.ClassLoaders$AppClassLoader@42110406 
+Loaded from file:/Users/carmen/spark/spark-3.5.6-bin-hadoop3/jars/derby-10.14.2.0.jar
+java.vendor=Homebrew
+java.runtime.version=11.0.27+0
 user.dir=/Users/carmen/Documents/github/de-bias/data-engineering/code/location-detection-home/mapp1-pw
 os.name=Mac OS X
 os.arch=aarch64
