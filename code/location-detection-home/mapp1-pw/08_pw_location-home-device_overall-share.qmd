@@ -154,26 +154,58 @@ print(glue::glue("Non-parallelised version took: {round(parallel_duration, 2)} s
 ## Alternative
 
 ```{r}
-parquet_path <- file.path(wd, "device-locations_22t07_alternative_parquettt")
-if (dir_exists(parquet_path)) dir_delete(parquet_path)  # Clean up before writing
 
-# Configure Spark
+# Helper: choose optimal partitions
+choose_partitions <- function(path, cores) {
+  # Force file size to numeric (not fs_bytes)
+  total_size <- sum(as.numeric(file_info(dir_ls(path, recurse = TRUE, glob = "*.csv.gz"))$size))
+  size_gb <- total_size / (1024^3)
+  target_parts <- ceiling((size_gb * 1024) / 128)
+  partitions <- min(max(target_parts, cores), cores * 5)
+  message(glue("Data size: {round(size_gb, 2)} GB"))
+  message(glue("Using {cores} cores, chosen {partitions} partitions"))
+  return(as.integer(partitions))   # <<--- Ensure return is integer!
+}
+
+input_path <- file.path(wd, "device-locations_22t07_parquet")
+
+num_cores <- parallel::detectCores()
+optimal_parts <- choose_partitions(input_path, num_cores)
+optimal_parts <- as.integer(optimal_parts)   # <<--- Safety, force integer again
+
+start_time <- Sys.time()
+
 config <- spark_config()
-config$`sparklyr.shell.driver-memory` <- '8G'
+config$`sparklyr.shell.driver-memory` <- '9G'
+sc <- spark_connect(master = "local", config = config)
 
-# Connect to Spark
-sc <- spark_connect(master = "local[*]", config = config)
+df <- spark_read_parquet(sc, path = input_path)
+df <- sdf_repartition(df, partitions = optimal_parts)
 
-df_csv <- spark_read_csv(
-  sc,
-  path = file.path(wd, "device-locations_22t07_alternative", "*", "*.csv"),
-  memory = TRUE
-) 
+# Group by 'device_aid' and 'location', and calculate the sum of 'total_count'
+rdd_1 <- df %>% 
+  group_by(device_aid, location) %>% 
+  summarise(overall_count = sum(total_count), .groups = "drop") %>% 
+  arrange(device_aid, location)
 
-spark_write_parquet(df_csv, path = parquet_path, mode = "overwrite")
+# Group by 'device_aid', and calculate the percentage based on 'overall_count'
+rdd_2 <- rdd_1 %>% 
+  group_by(device_aid) %>% 
+  mutate(percent = 100 * (overall_count / sum(overall_count))) %>% 
+  ungroup() %>% 
+  arrange(device_aid, location)
 
+output_path <- file.path(wd, "device-locations-home_time-aggregation_parquet-test")
+if (dir_exists(output_path)) dir_delete(output_path)  # Clean up before writing
+
+# Write the final parquet
+spark_write_parquet(rdd_2, output_path)
+
+# Disconnect from Spark
 spark_disconnect(sc)
 
-# Verify Parquet files created
-print(list.files(parquet_path, recursive = TRUE))
+# End timer
+end_time <- Sys.time()
+
+print(end_time - start_time)
 ```

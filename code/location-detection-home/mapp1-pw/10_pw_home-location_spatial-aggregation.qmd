@@ -13,21 +13,78 @@ rm(list=ls())
 # Libraries
 
 ```{r}
-library(tidyverse)
-library(sf)
-library(h3)
+library(sparklyr)    # For connecting to Spark
+library(dplyr)       # For data manipulation
+library(glue)
+library(future)
+library(future.apply)
+library(fs)   # for file size detection
 ```
 
-# Read data
+# Directory
 
 ```{r}
-df_home_location <- read_csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/location-home/part-00000-22616738-1d83-45b0-9be8-2b01fc18da31-c000.csv")
+wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
+```
 
+# Read geographies
+
+```{r}
 sdf <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
   st_transform(crs = 4326)
-
-head(df_home_location)
 ```
+
+# Read input data
+
+## Non-parquetised
+
+```{r}
+df_home_location_csv <- read_csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/location-home/part-00000-22616738-1d83-45b0-9be8-2b01fc18da31-c000.csv")
+
+```
+
+## Parquetised
+
+```{r}
+# Helper: choose optimal partitions
+choose_partitions <- function(path, cores) {
+  # Force file size to numeric (not fs_bytes)
+  total_size <- sum(as.numeric(file_info(dir_ls(path, recurse = TRUE, glob = "*.csv.gz"))$size))
+  size_gb <- total_size / (1024^3)
+  target_parts <- ceiling((size_gb * 1024) / 128)
+  partitions <- min(max(target_parts, cores), cores * 5)
+  message(glue("Data size: {round(size_gb, 2)} GB"))
+  message(glue("Using {cores} cores, chosen {partitions} partitions"))
+  return(as.integer(partitions))   # <<--- Ensure return is integer!
+}
+
+input_path <- file.path(wd, "location-home_parquet-test")
+
+num_cores <- parallel::detectCores()
+optimal_parts <- choose_partitions(input_path, num_cores)
+optimal_parts <- as.integer(optimal_parts)   # <<--- Safety, force integer again
+
+start_time <- Sys.time()
+
+config <- spark_config()
+config$`sparklyr.shell.driver-memory` <- '8G'
+sc <- spark_connect(master = "local", config = config)
+
+df <- spark_read_parquet(sc, path = input_path)
+df <- sdf_repartition(df, partitions = optimal_parts)
+
+df_home_location <- df %>% collect()
+
+# Disconnect from Spark
+spark_disconnect(sc)
+
+# End timer
+end_time <- Sys.time()
+
+print(end_time - start_time)
+```
+
+# Aggregate into geographies and save as
 
 ```{r}
 # Create the histogram
@@ -54,5 +111,5 @@ sdf_lda <- sdf_hex3 %>%
   group_by(code) %>% 
   summarise( home_location_count = n( ))
 
-st_write(sdf_lda, "/Volumes/DEBIAS/data/outputs/pw/locations-home/lad/home-location-count_lda.shp")
+st_write(sdf_lda, "/Volumes/DEBIAS/data/outputs/mapp1/locations-home/lad/home-location-count_lda_test.gpkg")
 ```

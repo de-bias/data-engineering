@@ -172,11 +172,28 @@ print(glue::glue("Non-parallelised version took: {round(parallel_duration, 2)} s
 
 ```{r}
 
-parquet_path <- file.path(wd, "geocoded-hex10-parquet")
+parquet_path <- file.path(wd, "geocoded-hex10_parquet-test")
 if (dir_exists(parquet_path)) dir_delete(parquet_path)  # Clean up before writing
 
+# Helper: choose optimal partitions
+choose_partitions <- function(path, cores) {
+  # Force file size to numeric (not fs_bytes)
+  total_size <- sum(as.numeric(file_info(dir_ls(path, recurse = TRUE, glob = "*.csv.gz"))$size))
+  size_gb <- total_size / (1024^3)
+  target_parts <- ceiling((size_gb * 1024) / 128)
+  partitions <- min(max(target_parts, cores), cores * 5)
+  message(glue("Data size: {round(size_gb, 2)} GB"))
+  message(glue("Using {cores} cores, chosen {partitions} partitions"))
+  return(as.integer(partitions))   # <<--- Ensure return is integer!
+}
+
+num_cores <- parallel::detectCores()
+optimal_parts <- choose_partitions(file.path(wd, "geocoded-hex10"), num_cores)
+optimal_parts <- as.integer(optimal_parts)   # <<--- Safety, force integer again
+
+
 config <- spark_config()
-config$`sparklyr.shell.driver-memory` <- '40G'
+config$`sparklyr.shell.driver-memory` <- '8G'
 sc <- spark_connect(master = "local", config = config)
 
 df_csv <- spark_read_csv(
@@ -186,6 +203,9 @@ df_csv <- spark_read_csv(
   ) %>%
   select(device_aid, code_h3, hour) %>%
   mutate(day = regexp_extract(input_file_name(), ".*/geocoded-hex10/([^/]+)/.*", 1)) 
+
+df_csv <- sdf_repartition(df_csv, partitions = optimal_parts)
+
 
 spark_write_parquet(df_csv, path = parquet_path, mode = "overwrite")
 
@@ -206,7 +226,7 @@ choose_partitions <- function(path, cores) {
 }
 
 num_cores <- parallel::detectCores()
-optimal_parts <- choose_partitions(file.path(wd, "geocoded-hex10-parquet"), num_cores)
+optimal_parts <- choose_partitions(file.path(wd, "geocoded-hex10_parquet-test"), num_cores)
 optimal_parts <- as.integer(optimal_parts)   # <<--- Safety, force integer again
 
 start_time <- Sys.time()
@@ -222,14 +242,16 @@ rdd_all <- df_all %>%
   summarise(total_count = n(), .groups = "drop")
 
 # Write output, partitioned by day, compressed
-output_path <- file.path(wd, "device-locations_22t07_parquet")
+output_path <- file.path(wd, "device-locations_22t07_parquet-test")
 if (dir_exists(output_path)) fs::dir_delete(output_path)
+
 spark_write_parquet(
   rdd_all,
   path = output_path,
   partition_by = "day",
   mode = "overwrite"
 )
+
 
 spark_disconnect(sc)
 
