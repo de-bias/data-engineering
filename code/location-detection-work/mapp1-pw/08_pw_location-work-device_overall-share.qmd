@@ -46,7 +46,7 @@ choose_partitions <- function(path, cores) {
   return(as.integer(partitions))   # <<--- Ensure return is integer!
 }
 
-input_path <- file.path(wd, ,"home", "device-locations_22t07")
+input_path <- file.path(wd, "work", "device-locations_09t16")
 
 num_cores <- parallel::detectCores()
 optimal_parts <- choose_partitions(input_path, num_cores)
@@ -74,7 +74,7 @@ rdd_2 <- rdd_1 %>%
   ungroup() %>% 
   arrange(device_aid, location)
 
-output_path <- file.path(wd, "home", "device-locations-home_time-aggregation")
+output_path <- file.path(wd, "work", "device-locations-work_time-aggregation")
 if (dir_exists(output_path)) dir_delete(output_path)  # Clean up before writing
 
 # Write the final parquet
@@ -100,7 +100,7 @@ print(end_time - start_time)
 # # Set parallel plan
 # plan(multisession, workers = parallel::detectCores())
 # 
-# parent_path <- file.path(wd, "device-locations_22t07_parallelised")
+# parent_path <- file.path(wd, "device-locations_09t16_parallelised")
 # 
 # # List all subfolders (days)
 # day_folders <- list.dirs(parent_path, full.names = TRUE, recursive = FALSE)

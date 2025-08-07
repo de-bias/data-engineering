@@ -1,5 +1,5 @@
 ---
-title: "Analysing home location"
+title: "Analysing work location"
 format: html
 editor: visual
 ---
@@ -36,6 +36,7 @@ wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
 sdf <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
   st_transform(crs = 4326)
 ```
+
 # Parquetised
 
 ## Read input data
@@ -53,7 +54,7 @@ choose_partitions <- function(path, cores) {
   return(as.integer(partitions))   # <<--- Ensure return is integer!
 }
 
-input_path <- file.path(wd, "home", "location-home")
+input_path <- file.path(wd, "work", "location-work")
 
 num_cores <- parallel::detectCores()
 optimal_parts <- choose_partitions(input_path, num_cores)
@@ -68,7 +69,7 @@ sc <- spark_connect(master = "local", config = config)
 df <- spark_read_parquet(sc, path = input_path)
 df <- sdf_repartition(df, partitions = optimal_parts)
 
-df_home_location <- df %>% collect()
+df_work_location <- df %>% collect()
 
 # Disconnect from Spark
 spark_disconnect(sc)
@@ -83,28 +84,28 @@ print(end_time - start_time)
 
 ```{r}
 # Create the histogram
-ggplot(df_home_location, aes(x = percent)) +
+ggplot(df_work_location, aes(x = percent)) +
   geom_histogram(fill = "skyblue", color = "black", bins = 50) +
   labs(title = "Histogram of Percent", x = "Percent", y = "Frequency") +
   theme_minimal()
 ```
 
 ```{r}
-unique_vec <- unique(df_home_location$device_aid)
+unique_vec <- unique(df_work_location$device_aid)
 ```
 
 ```{r}
-coordinates <- h3_to_geo(df_home_location$location) %>% as_data_frame()
-sdf_home_location <- cbind(df_home_location, coordinates) %>% 
+coordinates <- h3_to_geo(df_work_location$location) %>% as_data_frame()
+sdf_work_location <- cbind(df_work_location, coordinates) %>% 
   st_as_sf( coords = c("lng", "lat") , crs = 4326)
 
 sdf_hex3 <- st_join(sdf, 
-                    sdf_home_location,
+                    sdf_work_location,
                     join = st_contains) 
 
 sdf_lda <- sdf_hex3 %>% 
   group_by(code) %>% 
-  summarise( home_location_count = n( ))
+  summarise( work_location_count = n( ))
 
 st_write(sdf_lda, "/Volumes/DEBIAS/data/outputs/mapp1/locations-home/lad/home-location-count_lda.gpkg")
 ```
