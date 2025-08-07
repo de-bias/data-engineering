@@ -30,55 +30,7 @@ wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
 
 # Home locations
 
-## Non-parallelised
-
-```{r}
-# Configure Spark
-config <- spark_config()
-config$`sparklyr.shell.driver-memory` <- '40G'
-
-# Connect to Spark
-sc <- spark_connect(master = "local", config = config)
-```
-
-```{r}
-# Define the data parent folder and file pattern 
-data_parent_folder <- file.path(wd, "device-locations-home_time-aggregation") 
-
-file_pattern <- file.path(data_parent_folder, "*.csv")
-
-# Read CSV files into Spark DataFrame
-
-df <- spark_read_csv( sc, path = file_pattern, memory = TRUE )
-
-# Determine if a location is considered home based on the percentage
-
-rdd_1 <- df %>%
-  mutate(
-    is_home = case_when( 
-      percent > 50 & overall_count > 2 ~ TRUE,
-      TRUE ~ FALSE )
-    )
-
-# Filter for rows where 'is_home' is TRUE and repartition the DataFrame
-
-rdd_2 <- rdd_1 %>% 
-  filter(is_home == TRUE) %>% 
-  sdf_repartition(partitions = 1)
-
-save_location <- file.path(wd, "location-home")
-
-# Write the final DataFrame to CSV
-
-spark_write_csv(rdd_2, save_location)
-
-# Disconnect from Spark
-
-spark_disconnect(sc)
-
-```
-
-## Alternative
+## Parquetised
 
 ```{r}
 # Helper: choose optimal partitions
@@ -93,7 +45,7 @@ choose_partitions <- function(path, cores) {
   return(as.integer(partitions))   # <<--- Ensure return is integer!
 }
 
-input_path <- file.path(wd, "device-locations-home_time-aggregation_parquet-test")
+input_path <- file.path(wd, "home", "device-locations-home_time-aggregation")
 
 num_cores <- parallel::detectCores()
 optimal_parts <- choose_partitions(input_path, num_cores)
@@ -121,7 +73,7 @@ rdd_2 <- rdd_1 %>%
   filter(is_home == TRUE) %>% 
   sdf_repartition(partitions = 1)
 
-output_path <- file.path(wd, "location-home_parquet-test")
+output_path <- file.path(wd, "home", "location-home")
 if (dir_exists(output_path)) dir_delete(output_path)  # Clean up before writing
 
 # Write the final parquet
@@ -134,5 +86,52 @@ spark_disconnect(sc)
 end_time <- Sys.time()
 
 print(end_time - start_time)
+
+```
+
+
+## Non-parquetised experiemnts
+
+```{r}
+# # Configure Spark
+# config <- spark_config()
+# config$`sparklyr.shell.driver-memory` <- '40G'
+# 
+# # Connect to Spark
+# sc <- spark_connect(master = "local", config = config)
+# 
+# # Define the data parent folder and file pattern 
+# data_parent_folder <- file.path(wd, "device-locations-home_time-aggregation") 
+# 
+# file_pattern <- file.path(data_parent_folder, "*.csv")
+# 
+# # Read CSV files into Spark DataFrame
+# 
+# df <- spark_read_csv( sc, path = file_pattern, memory = TRUE )
+# 
+# # Determine if a location is considered home based on the percentage
+# 
+# rdd_1 <- df %>%
+#   mutate(
+#     is_home = case_when( 
+#       percent > 50 & overall_count > 2 ~ TRUE,
+#       TRUE ~ FALSE )
+#     )
+# 
+# # Filter for rows where 'is_home' is TRUE and repartition the DataFrame
+# 
+# rdd_2 <- rdd_1 %>% 
+#   filter(is_home == TRUE) %>% 
+#   sdf_repartition(partitions = 1)
+# 
+# save_location <- file.path(wd, "location-home")
+# 
+# # Write the final DataFrame to CSV
+# 
+# spark_write_csv(rdd_2, save_location)
+# 
+# # Disconnect from Spark
+# 
+# spark_disconnect(sc)
 
 ```

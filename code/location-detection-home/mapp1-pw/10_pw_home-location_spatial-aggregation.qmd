@@ -18,7 +18,10 @@ library(dplyr)       # For data manipulation
 library(glue)
 library(future)
 library(future.apply)
-library(fs)   # for file size detection
+library(sf)   # for file size detection
+library(ggplot2)
+library(h3)
+library(tidyverse)
 ```
 
 # Directory
@@ -33,17 +36,9 @@ wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
 sdf <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
   st_transform(crs = 4326)
 ```
+# Parquetised
 
-# Read input data
-
-## Non-parquetised
-
-```{r}
-df_home_location_csv <- read_csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/location-home/part-00000-22616738-1d83-45b0-9be8-2b01fc18da31-c000.csv")
-
-```
-
-## Parquetised
+## Read input data
 
 ```{r}
 # Helper: choose optimal partitions
@@ -58,7 +53,7 @@ choose_partitions <- function(path, cores) {
   return(as.integer(partitions))   # <<--- Ensure return is integer!
 }
 
-input_path <- file.path(wd, "location-home_parquet-test")
+input_path <- file.path(wd, "home", "location-home")
 
 num_cores <- parallel::detectCores()
 optimal_parts <- choose_partitions(input_path, num_cores)
@@ -84,7 +79,7 @@ end_time <- Sys.time()
 print(end_time - start_time)
 ```
 
-# Aggregate into geographies and save as
+## Aggregate into geographies and save as gpkg
 
 ```{r}
 # Create the histogram
@@ -111,5 +106,25 @@ sdf_lda <- sdf_hex3 %>%
   group_by(code) %>% 
   summarise( home_location_count = n( ))
 
-st_write(sdf_lda, "/Volumes/DEBIAS/data/outputs/mapp1/locations-home/lad/home-location-count_lda_test.gpkg")
+st_write(sdf_lda, "/Volumes/DEBIAS/data/outputs/mapp1/locations-home/lad/home-location-count_lda.gpkg")
+```
+
+## Non-parquetised experiments
+
+```{r}
+# df_home_location_csv <- read_csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/location-home/part-00000-22616738-1d83-45b0-9be8-2b01fc18da31-c000.csv")
+# 
+# coordinates <- h3_to_geo(df_home_location_csv$location) %>% as_data_frame()
+# sdf_home_location <- cbind(df_home_location_csv, coordinates) %>%
+#   st_as_sf( coords = c("lng", "lat") , crs = 4326)
+# 
+# sdf_hex3 <- st_join(sdf,
+#                     sdf_home_location,
+#                     join = st_contains)
+# 
+# sdf_lda <- sdf_hex3 %>%
+#   group_by(code) %>%
+#   summarise( home_location_count = n( ))
+# 
+# st_write(sdf_lda, "/Volumes/DEBIAS/data/outputs/mapp1/locations-home/lad/home-location-count_lda_non-parquetised.gpkg")
 ```
