@@ -28,7 +28,6 @@ library(fs)   # for file size detection
 wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
 ```
 
-
 # Identifying unique device-location pairs
 
 ## Parquetised
@@ -79,8 +78,22 @@ Careful with code chunk below, only uncomment if wanting to transform csv hex lo
 
 Code below identifies unique device-location pairs, and retains day hours.
 
+\# Create date and filter for weekdays only
+
+df_weekdays \<- df_all %\>%
+
+mutate(
+
+day_formatted = paste0(substr(day, 5, 8), "-", substr(day, 3, 4), "-", substr(day, 1, 2)),
+
+day_date = to_date(day_formatted, 'yyyy-MM-dd'),
+
+day_of_week = date_format(day_date, "E")
+
+)
+
 ```{r}
-parquet_path <- file.path(wd, "geocoded-hex10-test")
+parquet_path <- file.path(wd, "geocoded-hex10")
 
 # Helper: choose optimal partitions
 choose_partitions <- function(path, cores) {
@@ -95,29 +108,27 @@ choose_partitions <- function(path, cores) {
 }
 
 num_cores <- parallel::detectCores()
-optimal_parts <- choose_partitions(file.path(wd, "geocoded-hex10-test"), num_cores)
+optimal_parts <- choose_partitions(file.path(wd, "geocoded-hex10"), num_cores)
 optimal_parts <- as.integer(optimal_parts)   # <<--- Safety, force integer again
 
 start_time <- Sys.time()
 
 config <- spark_config()
-config$`sparklyr.shell.driver-memory` <- '8G'
+config$`sparklyr.shell.driver-memory` <- '40G'
 sc <- spark_connect(master = "local", config = config)
 
 df_all <- spark_read_parquet(sc, path = parquet_path)
 df_all <- sdf_repartition(df_all, partitions = optimal_parts)
-
-df_all_c <- df_all %>% collect()
 
 # Create date and filter for weekdays only
 df_weekdays <- df_all %>%
   mutate(
     day_formatted = paste0(substr(day, 5, 8), "-", substr(day, 3, 4), "-", substr(day, 1, 2)),
     day_date = to_date(day_formatted, 'yyyy-MM-dd'),
-    day_of_week = date_format(day_date, "u")  
+    day_of_week = date_format(day_date, "E")  
   ) %>%
-  filter(day_of_week <= 5) %>%
-  select(-day_formatted, -day_date, -day_of_week)  
+  select(-day_formatted, -day_date, -day_of_week) %>%
+  filter(day_of_week %in% c("Mon", "Tue", "Wed", "Thu", "Fri"))
 
 # Main processing
 rdd_all <- df_weekdays %>%
