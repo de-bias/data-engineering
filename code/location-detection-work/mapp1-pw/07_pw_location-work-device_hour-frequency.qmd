@@ -28,27 +28,6 @@ library(fs)   # for file size detection
 wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
 ```
 
-# Select dates
-
-```{r}
-days <-  c(
-  "01042021",
-  "02042021",
-  "03042021",
-  "04042021",
-  "05042021",
-  "06042021",
-  "07042021"
-)
-
-```
-
-Uncomment if testing
-
-```{r}
-# days <-  c(
-#   "01042021")
-```
 
 # Identifying unique device-location pairs
 
@@ -128,8 +107,18 @@ sc <- spark_connect(master = "local", config = config)
 df_all <- spark_read_parquet(sc, path = parquet_path)
 df_all <- sdf_repartition(df_all, partitions = optimal_parts)
 
+# Create date and filter for weekdays only
+df_weekdays <- df_all %>%
+  mutate(
+    day_formatted = paste0(substr(day, 5, 8), "-", substr(day, 3, 4), "-", substr(day, 1, 2)),
+    day_date = to_date(day_formatted, 'yyyy-MM-dd'),
+    day_of_week = date_format(day_date, "u")
+  ) %>%
+  filter(day_of_week <= 5) %>%
+  select(-day_formatted, -day_date, -day_of_week)  
+
 # Main processing
-rdd_all <- df_all %>%
+rdd_all <- df_weekdays %>%
   mutate(location = code_h3) %>%
   filter(hour >= 9 & hour < 16) %>%
   group_by(day, device_aid, location) %>%
@@ -146,7 +135,6 @@ spark_write_parquet(
   mode = "overwrite"
 )
 
-
 spark_disconnect(sc)
 
 end_time <- Sys.time()
@@ -160,6 +148,28 @@ TOTAL runtime: 5.95 seconds
 ```
 
 ## Non-parquetised experiments
+
+### Select dates
+
+```{r}
+days <-  c(
+  "01042021",
+  "02042021",
+  "03042021",
+  "04042021",
+  "05042021",
+  "06042021",
+  "07042021"
+)
+
+```
+
+Uncomment if testing
+
+```{r}
+# days <-  c(
+#   "01042021")
+```
 
 ### Parallelised
 
