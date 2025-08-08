@@ -78,20 +78,6 @@ Careful with code chunk below, only uncomment if wanting to transform csv hex lo
 
 Code below identifies unique device-location pairs, and retains day hours.
 
-\# Create date and filter for weekdays only
-
-df_weekdays \<- df_all %\>%
-
-mutate(
-
-day_formatted = paste0(substr(day, 5, 8), "-", substr(day, 3, 4), "-", substr(day, 1, 2)),
-
-day_date = to_date(day_formatted, 'yyyy-MM-dd'),
-
-day_of_week = date_format(day_date, "E")
-
-)
-
 ```{r}
 parquet_path <- file.path(wd, "geocoded-hex10")
 
@@ -127,8 +113,9 @@ df_weekdays <- df_all %>%
     day_date = to_date(day_formatted, 'yyyy-MM-dd'),
     day_of_week = date_format(day_date, "E")  
   ) %>%
-  select(-day_formatted, -day_date, -day_of_week) %>%
-  filter(day_of_week %in% c("Mon", "Tue", "Wed", "Thu", "Fri"))
+  filter(day_of_week %in% c("Mon", "Tue", "Wed", "Thu", "Fri")) %>% 
+  select(-day_formatted, -day_date, -day_of_week) 
+  
 
 # Main processing
 rdd_all <- df_weekdays %>%
@@ -157,7 +144,8 @@ message(glue("TOTAL runtime: {round(end_time - start_time, 2)} seconds"))
 ```         
 Data size: 0 GB
 Using 10 cores, chosen 10 partitions
-TOTAL runtime: 5.95 seconds
+* Using Spark: 3.5.0
+TOTAL runtime: 31.54 seconds
 ```
 
 ## Non-parquetised experiments
