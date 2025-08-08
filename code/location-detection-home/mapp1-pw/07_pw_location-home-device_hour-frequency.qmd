@@ -102,6 +102,8 @@ Code below identifies unique device-location pairs, and retains night hours.
 
 ```{r}
 
+parquet_path <- file.path(wd, "geocoded-hex10")
+
 # Helper: choose optimal partitions
 choose_partitions <- function(path, cores) {
   # Force file size to numeric (not fs_bytes)
