@@ -107,10 +107,10 @@ sdf_lda <- sdf_hex3 %>%
   group_by(code) %>% 
   summarise( work_location_count = n( ))
 
-st_write(sdf_lda, "/Volumes/DEBIAS/data/outputs/mapp1/locations-home/lad/home-location-count_lda.gpkg")
+st_write(sdf_lda, "/Volumes/DEBIAS/data/outputs/mapp1/locations-work/lad/work-location-count_lda.gpkg")
 ```
 
-## Non-parquetised experiments
+# Non-parquetised experiments
 
 ```{r}
 # df_home_location_csv <- read_csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/location-home/part-00000-22616738-1d83-45b0-9be8-2b01fc18da31-c000.csv")

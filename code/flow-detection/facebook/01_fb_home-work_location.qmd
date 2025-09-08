@@ -1,0 +1,216 @@
+---
+title: "Analysing home location"
+format: html
+editor: visual
+---
+
+# Clean environment
+
+```{r}
+rm(list=ls())
+```
+
+# Libraries
+
+```{r}
+library(sparklyr)    # For connecting to Spark
+library(dplyr)       # For data manipulation
+library(glue)
+library(future)
+library(future.apply)
+library(sf)   # for file size detection
+library(ggplot2)
+library(h3)
+library(tidyverse)
+library(lubridate)
+```
+
+# Set working directory
+
+## Server
+
+```{r}
+wd <- "/Volumes/DEBIAS/data/inputs"
+```
+
+# Data inputs
+
+## Movement data
+
+FB gridded movement data for March (excluding weekends).
+
+```{r}
+
+  
+csv_files <- list.files(path = "/Volumes/DEBIAS/data/inputs/fb/grids/movements/mar20-aug21", pattern = "\\.csv$", full.names = TRUE)
+
+# Select data for March of 2021  
+csv_files <- csv_files[1029:(1029 + 31*3)]
+data_list <- lapply(csv_files, read.csv)
+
+# extract the date between underscores
+names(data_list) <- sapply(basename(csv_files), function(x) {
+  # use a regular expression to match the date between underscores
+  gsub(".*_(\\d{4}-\\d{2}-\\d{2})_.*", "\\1", x)
+})
+
+# get the names (dates) from the list
+dates <- as.Date(names(data_list))
+
+# keep only weekdays (Mon–Fri)
+keep_idx <- !(weekdays(dates) %in% c("Saturday", "Sunday"))
+
+# subset the list
+data_list <- data_list[keep_idx]
+```
+
+## Boundary vector data
+
+### Local authority districts
+
+```{r}
+lad_sdf <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022.gpkg") %>% 
+  st_transform(crs="EPSG:4326") %>% 
+  st_simplify(preserveTopology =T, # simplify boundaries
+              dTolerance = 1000) %>%  # 1km
+  sf::st_make_valid()  # check the geometry is valid
+```
+
+# Average gridded population
+
+## Select the resident population (i.e. 00.00 - 8.00 UK time)
+
+```{r}
+# combine selected data frames into a single tabular dataset
+combined_data <- do.call( rbind, data_list )
+
+# filter data
+selected_gridded_data <- combined_data %>% 
+  dplyr::filter( country == "GB" ) #  for GB
+
+# convert the time stamp column to POSIXct date-time format
+selected_gridded_data$timestamp <- as.POSIXct(selected_gridded_data$date_time, format = "%Y-%m-%d %H:%M")
+
+# filter night-time population: 0 AM pacific time is 8 AM UK time
+selected_gridded_data <- subset(selected_gridded_data, format(selected_gridded_data$timestamp, "%H:%M") == "00:00")
+```
+
+## Approach 1: averaging temporally and then aggregating spatially
+
+### Average temporally
+
+```{r}
+# group by spatial unit and calculate average over time
+average_gridded_mov_df <- selected_gridded_data  %>%
+  mutate(coords = str_extract(geometry, "(?<=\\().*(?=\\))")) %>%
+  separate(coords, into = c("start_coord", "end_coord"), sep = ", ")  %>%
+  group_by( start_coord, end_coord ) %>%
+  summarise(month_avg_fb_mov = mean(n_crisis, na.rm = TRUE), .groups = "drop")
+```
+
+### Aggregate spatially
+
+```{r}
+average_gridded_mov_sdf <- average_gridded_mov_df %>%
+  separate(start_coord, into = c("start_long", "start_lat"), sep = " ", convert = TRUE) %>%
+  st_as_sf(coords = c("start_long", "start_lat"),
+           crs = 4326)
+
+average_lad_start_mov <- st_join(lad_sdf,
+                    average_gridded_mov_sdf,
+                    join = st_contains) %>%
+  select("LAD21CD", "end_coord", "month_avg_fb_mov") %>%
+  rename("LAD21CD_start" = "LAD21CD") %>%
+  st_drop_geometry()
+
+average_gridded_mov_sdf <- average_lad_start_mov %>%
+  separate(end_coord, into = c("end_long", "end_lat"), sep = " ", convert = TRUE) %>%
+  filter(!is.na(end_long)) %>%
+  filter(!is.na(end_lat)) %>%
+  st_as_sf(coords = c("end_long", "end_lat"),
+           crs = 4326)
+
+mov_lad_tts <- st_join(lad_sdf,
+                    average_gridded_mov_sdf,
+                    join = st_contains) %>%
+  select("LAD21CD", "LAD21CD_start", "month_avg_fb_mov") %>%
+  rename("LAD21CD_end" = "LAD21CD") %>%
+  st_drop_geometry() %>%
+  group_by( LAD21CD_start, LAD21CD_end ) %>%
+  summarise(month_avg_fb_mov = sum(month_avg_fb_mov, na.rm = FALSE), .groups = "drop")
+
+```
+
+Checking the share of grids with average movement counts. *How many rows are NAs?*
+
+```{r}
+# original input data
+ (sum(is.na(selected_gridded_data$n_crisis)) / nrow(selected_gridded_data)) * 100
+# aggregate data
+ (sum(is.na(mov_lad_tts$month_avg_fb_mov)) / nrow(mov_lad_tts)) * 100
+```
+
+## Apporach 2: aggregating spatially and then averaging temporally
+
+### Aggregate spatially
+
+```{r} 
+aggregate_gridded_start_sdf <- selected_gridded_data %>% 
+  mutate(coords = str_extract(geometry, "(?<=\\().*(?=\\))")) %>% 
+  separate(coords, into = c("start_coord", "end_coord"), sep = ", ") %>% 
+  separate(start_coord, into = c("start_long", "start_lat"), sep = " ", convert = TRUE) %>%
+  st_as_sf(coords = c("start_long", "start_lat"), crs = 4326)
+
+aggregate_lad_start_df <- st_join(select(lad_sdf, "LAD21CD", "SHAPE"), 
+                                  aggregate_gridded_start_sdf, 
+                                  join = st_contains) %>% 
+  rename("LAD21CD_start" = "LAD21CD") %>%
+  st_drop_geometry()
+
+aggregate_lad_sdf <- aggregate_lad_start_df %>%
+  separate(end_coord, into = c("end_long", "end_lat"), sep = " ", convert = TRUE) %>%
+  filter(!is.na(end_long)) %>%
+  filter(!is.na(end_lat)) %>%
+  st_as_sf(coords = c("end_long", "end_lat"),
+           crs = 4326)
+
+aggregate_lad_df <- st_join(select(lad_sdf, "LAD21CD", "SHAPE"), 
+                                  aggregate_lad_sdf, 
+                                  join = st_contains) %>% 
+  rename("LAD21CD_end" = "LAD21CD") %>%
+  st_drop_geometry() %>%
+  select(LAD21CD_start, LAD21CD_end, date_time, n_crisis) %>%
+  group_by( LAD21CD_start, LAD21CD_end, date_time ) %>%
+  summarise(n_crisis_LAD = sum(n_crisis, na.rm = FALSE), .groups = "drop")
+
+```
+
+### Average temporally
+
+```{r}
+mov_lad_stt <- aggregate_lad_df %>%
+  group_by( LAD21CD_start, LAD21CD_end ) %>%
+  summarise(month_avg_fb_mov = mean(n_crisis_LAD, na.rm = TRUE), .groups = "drop")
+```
+
+Checking the share of grids with average movement counts. *How many rows are NAs?*
+
+```{r}
+# original input data
+ (sum(is.na(selected_gridded_data$n_crisis)) / nrow(selected_gridded_data)) * 100
+# aggregate data
+ (sum(is.na(mov_lad_stt$month_avg_fb_mov)) / nrow(mov_lad_stt)) * 100
+```
+
+## Test consistency in approaches
+
+```{r}
+joined_df <- mov_lad_tts %>%
+  inner_join(mov_lad_stt, by = c("LAD21CD_start", "LAD21CD_end")) %>%
+  rename("month_avg_fb_mov_tts" = "month_avg_fb_mov.x",
+         "month_avg_fb_mov_stt" = "month_avg_fb_mov.y") 
+
+plot(joined_df$month_avg_fb_mov_tts, joined_df$month_avg_fb_mov_stt)
+```
+
+

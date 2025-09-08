@@ -1,0 +1,146 @@
+---
+title: "Analysing home location"
+format: html
+editor: visual
+---
+
+# Clean environment
+
+```{r}
+rm(list=ls())
+```
+
+# Libraries
+
+```{r}
+library(sparklyr)    # For connecting to Spark
+library(dplyr)       # For data manipulation
+library(glue)
+library(future)
+library(future.apply)
+library(sf)   # for file size detection
+library(ggplot2)
+library(h3)
+library(tidyverse)
+```
+
+# Directory
+
+```{r}
+wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
+```
+
+
+# Parquetised
+
+## Read input data
+
+```{r}
+# Helper: choose optimal partitions
+choose_partitions <- function(path, cores) {
+  # Force file size to numeric (not fs_bytes)
+  total_size <- sum(as.numeric(file_info(dir_ls(path, recurse = TRUE, glob = "*.csv.gz"))$size))
+  size_gb <- total_size / (1024^3)
+  target_parts <- ceiling((size_gb * 1024) / 128)
+  partitions <- min(max(target_parts, cores), cores * 5)
+  message(glue("Data size: {round(size_gb, 2)} GB"))
+  message(glue("Using {cores} cores, chosen {partitions} partitions"))
+  return(as.integer(partitions))   # <<--- Ensure return is integer!
+}
+
+start_time <- Sys.time()
+
+config <- spark_config()
+config$`sparklyr.shell.driver-memory` <- '8G'
+sc <- spark_connect(master = "local", config = config)
+
+num_cores <- parallel::detectCores()
+
+input_path_home <- file.path(wd, "home", "location-home")
+optimal_parts_home <- choose_partitions(input_path_home, num_cores)
+optimal_parts_home <- as.integer(optimal_parts_home)   
+df_home <- spark_read_parquet(sc, path = input_path_home)
+df_home <- sdf_repartition(df_home, partitions = optimal_parts_home)
+df_home_location <- df_home %>% collect()
+
+
+input_path_work <- file.path(wd, "work", "location-work")
+optimal_parts_work <- choose_partitions(input_path_work, num_cores)
+optimal_parts_work <- as.integer(optimal_parts_work)   
+df_work <- spark_read_parquet(sc, path = input_path_work)
+df_work <- sdf_repartition(df_work, partitions = optimal_parts_work)
+df_work_location <- df_work %>% collect()
+
+# Disconnect from Spark
+spark_disconnect(sc)
+
+# End timer
+end_time <- Sys.time()
+
+print(end_time - start_time)
+```
+## Find home and work location for device
+
+We keep only devices where we are able to detect both home and work locations.
+
+```{r}
+df_home_aux <- df_home_location %>% 
+  rename(device_aid_home = device_aid, location_home = location) %>%
+  select(device_aid_home, location_home)
+
+df_work_aux <- df_work_location %>% 
+  rename(device_aid_work = device_aid, location_work = location) %>%
+  select(device_aid_work, location_work)
+
+df_hw <- inner_join(df_home_aux, df_work_aux, by=c('device_aid_home' = 'device_aid_work'))
+```
+
+## Add LAD
+
+### Read geographies
+
+```{r}
+sdf <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
+  st_transform(crs = 4326)
+```
+### Add LAD codes
+
+```{r}
+coordinates <- h3_to_geo(df_hw$location_home) %>% as_data_frame()
+sdf_home_location <- cbind(df_hw, coordinates) %>% 
+  st_as_sf( coords = c("lng", "lat") , crs = 4326)
+
+sdf_home_hex3 <- st_join(sdf, 
+                    sdf_home_location,
+                    join = st_contains) 
+
+df_hw <- sdf_home_hex3 %>%
+  st_drop_geometry(sdf_home_hex3) %>%
+  rename(code_home = code)
+  
+  
+  
+  
+coordinates <- h3_to_geo(df_hw$location_work) %>% as_data_frame()
+sdf_work_location <- cbind(df_hw, coordinates) %>% 
+  st_as_sf( coords = c("lng", "lat") , crs = 4326)
+
+sdf_work_hex3 <- st_join(sdf, 
+                    sdf_work_location,
+                    join = st_contains) 
+
+df_hw <- sdf_work_hex3 %>%
+  st_drop_geometry(sdf_work_hex3) %>%
+  rename(code_work = code)
+```
+
+## Group by LAD home and work
+
+```{r}
+df_flows <- df_hw %>%
+  group_by(code_work, code_home) %>%
+  summarise(count = n(), .groups = "drop")
+
+write.csv(df_flows, "/Volumes/DEBIAS/data/outputs/mapp1/flows/lad/flow-home-work_lad_htw_pw.csv")
+```
+

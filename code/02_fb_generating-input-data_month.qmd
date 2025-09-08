@@ -38,7 +38,7 @@ FB gridded population data for March (inc weekends)
   
 csv_files <- list.files(path = "/Volumes/DEBIAS/data/inputs/fb/grids/populations/mar20-aug21", pattern = "\\.csv$", full.names = TRUE)
 
-# Select data for March of 2021 for resident population (i.e. 00.00 - 8.00)
+# Select data for March of 2021
 csv_files <- csv_files[1021:(1021 + 31*3)]
 data_list <- lapply(csv_files, read.csv)
 
@@ -86,7 +86,7 @@ plot(grid_shp$geometry)
 
 ## Approach 1: averaging temporally and then aggregating spatially
 
-### Select the resident population (i.e. 00.00 - 8.00)
+### Select the resident population (i.e. 00.00 - 8.00 UK time)
 
 ```{r}
 # combine selected data frames into a single tabular dataset
@@ -99,8 +99,8 @@ selected_gridded_data <- combined_data %>%
 # convert the time stamp column to POSIXct date-time format
 selected_gridded_data$timestamp <- as.POSIXct(selected_gridded_data$date_time, format = "%Y-%m-%d %H:%M")
 
-# filter night-time population
-selected_gridded_data <- subset(selected_gridded_data, format(selected_gridded_data$timestamp, "%H:%M") == "00:00")
+# filter night-time population: 4 PM pacific time is 0 AM UK time
+selected_gridded_data <- subset(selected_gridded_data, format(selected_gridded_data$timestamp, "%H:%M") == "16:00")
 
 # group by spatial unit and calculate average over time
 average_gridded_pop_df <- selected_gridded_data %>%

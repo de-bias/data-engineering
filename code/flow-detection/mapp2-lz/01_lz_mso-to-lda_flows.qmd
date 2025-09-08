@@ -53,14 +53,11 @@ df_lad_codes <- df_all %>%
 
 ## Aggregating to LAD flows
 
-
 ```{r}
 lad_flows <- df_lad_codes %>%
   group_by(o_LAD22CD, d_LAD22CD) %>%
   summarise(trips = sum(num_trips, na.rm = TRUE), .groups = 'drop')
 ```
-
-
 
 ```{r}
 write_csv(lad_flows, "/Volumes/rdm04/DEBIAS/data/outputs/mapp2/flows/lad/flow-origin-destination_lad.csv")
