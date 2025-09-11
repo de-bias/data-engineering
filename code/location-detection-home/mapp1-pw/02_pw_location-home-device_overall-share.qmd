@@ -25,7 +25,7 @@ library(fs)   # for file size detection
 # Directory
 
 ```{r}
-wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
+wd <- "/Volumes/DEBIAS/data/inputs/"
 ```
 
 # Share of counts in each location for each device
@@ -46,7 +46,7 @@ choose_partitions <- function(path, cores) {
   return(as.integer(partitions))   # <<--- Ensure return is integer!
 }
 
-input_path <- file.path(wd, ,"home", "device-locations_22t07")
+input_path <- file.path(wd, "mapp1", "home", "device-locations_22t07")
 
 num_cores <- parallel::detectCores()
 optimal_parts <- choose_partitions(input_path, num_cores)
@@ -74,7 +74,7 @@ rdd_2 <- rdd_1 %>%
   ungroup() %>% 
   arrange(device_aid, location)
 
-output_path <- file.path(wd, "home", "device-locations-home_time-aggregation")
+output_path <- file.path(wd, "mapp1", "home", "device-locations-home_time-aggregation")
 if (dir_exists(output_path)) dir_delete(output_path)  # Clean up before writing
 
 # Write the final parquet

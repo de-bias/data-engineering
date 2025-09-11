@@ -20,7 +20,7 @@ library(sf)
 # Set directory
 
 ```{r}
-wd <- "/Volumes/rdm04/DEBIAS"
+wd <- "/Volumes/DEBIAS"
 ```
 
 # Read data
@@ -39,6 +39,12 @@ lookup <- read_csv( paste0(wd, "/data/inputs/geographies/lookup21ew/OA_to_LSOA_t
 ```
 
 # Use all activity
+
+## Saving MSOA flows
+
+```{r}
+write_csv(df_all, "/Volumes/DEBIAS/data/inputs/mapp2/flows/msoa/flow-origin-destination_msoa.csv")
+```
 
 ## Adding LAD codes
 
@@ -64,6 +70,12 @@ write_csv(lad_flows, "/Volumes/rdm04/DEBIAS/data/outputs/mapp2/flows/lad/flow-or
 ```
 
 # Use home to work data
+
+## Saving MSOA flows
+
+```{r}
+write_csv(df_htw, "/Volumes/DEBIAS/data/inputs/mapp2/flows/msoa/flow-home-work_msoa.csv")
+```
 
 ## Adding LAD codes
 

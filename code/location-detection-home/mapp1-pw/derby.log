@@ -1,13 +1,13 @@
 ----------------------------------------------------------------
-Fri Aug 08 15:59:38 BST 2025:
-Booting Derby version The Apache Software Foundation - Apache Derby - 10.14.2.0 - (1828579): instance a816c00e-0198-8a31-d412-0000647a35a0 
-on database directory memory:/Users/franciscorowe/Library/CloudStorage/Dropbox/Francisco/Research/grants/2023/digital-footprint-accelerator/debias/github/data-engineering/code/location-detection-home/mapp1-pw/databaseName=metastore_db with class loader sun.misc.Launcher$AppClassLoader@1761e840 
-Loaded from file:/Users/franciscorowe/spark/spark-3.5.0-bin-hadoop3/jars/derby-10.14.2.0.jar
+Thu Sep 11 15:51:23 BST 2025:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.14.2.0 - (1828579): instance a816c00e-0199-3942-7e25-0000130925b0 
+on database directory memory:/Users/carmen/Documents/github/de-bias/data-engineering/code/location-detection-home/mapp1-pw/databaseName=metastore_db with class loader sun.misc.Launcher$AppClassLoader@22a71081 
+Loaded from file:/Users/carmen/spark/spark-3.5.6-bin-hadoop3/jars/derby-10.14.2.0.jar
 java.vendor=Oracle Corporation
-java.runtime.version=1.8.0_441-b07
-user.dir=/Users/franciscorowe/Library/CloudStorage/Dropbox/Francisco/Research/grants/2023/digital-footprint-accelerator/debias/github/data-engineering/code/location-detection-home/mapp1-pw
+java.runtime.version=1.8.0_451-b10
+user.dir=/Users/carmen/Documents/github/de-bias/data-engineering/code/location-detection-home/mapp1-pw
 os.name=Mac OS X
 os.arch=aarch64
-os.version=15.5
+os.version=15.6
 derby.system.home=null
 Database Class Loader started - derby.database.classpath=''

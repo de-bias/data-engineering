@@ -15,8 +15,8 @@ library(readr)       # For reading and writing CSV files
 ```{r}
 
 # Define working directories
-wd <- "/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk/raw"
-wd_geocoded <- "/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk/geocoded-hex10"
+wd <- "/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk-week/raw"
+wd_geocoded <- "/Volumes/rdm04/DEBIAS/data/inputs/mapp1/geocoded-hex10"
 
 # List all subfolders (dates)
 date_folders <- dir_ls(wd, type = "directory")

@@ -37,15 +37,21 @@ wd <- "/Volumes/DEBIAS/data/inputs"
 
 ## Movement data
 
-FB gridded movement data for March (excluding weekends).
+FB gridded movement data for week or month in March 2021 (excluding weekends).
 
 ```{r}
+month <- FALSE # Set to FALSE if computing for week
 
-  
 csv_files <- list.files(path = "/Volumes/DEBIAS/data/inputs/fb/grids/movements/mar20-aug21", pattern = "\\.csv$", full.names = TRUE)
 
+if (month == TRUE) {
 # Select data for March of 2021  
 csv_files <- csv_files[1029:(1029 + 31*3)]
+} else {
+  # Select data for March of 2021  
+  csv_files <- csv_files[c(1071, 1074, 1077, 1080, 1083, 1086, 1089)]
+}
+
 data_list <- lapply(csv_files, read.csv)
 
 # extract the date between underscores
@@ -105,7 +111,7 @@ average_gridded_mov_df <- selected_gridded_data  %>%
   mutate(coords = str_extract(geometry, "(?<=\\().*(?=\\))")) %>%
   separate(coords, into = c("start_coord", "end_coord"), sep = ", ")  %>%
   group_by( start_coord, end_coord ) %>%
-  summarise(month_avg_fb_mov = mean(n_crisis, na.rm = TRUE), .groups = "drop")
+  summarise(avg_fb_mov = mean(n_crisis, na.rm = TRUE), .groups = "drop")
 ```
 
 ### Aggregate spatially
@@ -119,7 +125,7 @@ average_gridded_mov_sdf <- average_gridded_mov_df %>%
 average_lad_start_mov <- st_join(lad_sdf,
                     average_gridded_mov_sdf,
                     join = st_contains) %>%
-  select("LAD21CD", "end_coord", "month_avg_fb_mov") %>%
+  select("LAD21CD", "end_coord", "avg_fb_mov") %>%
   rename("LAD21CD_start" = "LAD21CD") %>%
   st_drop_geometry()
 
@@ -133,11 +139,17 @@ average_gridded_mov_sdf <- average_lad_start_mov %>%
 mov_lad_tts <- st_join(lad_sdf,
                     average_gridded_mov_sdf,
                     join = st_contains) %>%
-  select("LAD21CD", "LAD21CD_start", "month_avg_fb_mov") %>%
+  select("LAD21CD", "LAD21CD_start", "avg_fb_mov") %>%
   rename("LAD21CD_end" = "LAD21CD") %>%
   st_drop_geometry() %>%
   group_by( LAD21CD_start, LAD21CD_end ) %>%
-  summarise(month_avg_fb_mov = sum(month_avg_fb_mov, na.rm = FALSE), .groups = "drop")
+  summarise(avg_fb_mov = sum(avg_fb_mov, na.rm = FALSE), .groups = "drop")
+
+if (month == TRUE) {
+  write.csv(mov_lad_tts, "/Volumes/DEBIAS/data/inputs/fb/census-month/tts/htw-lad-tts.csv")
+} else {
+  write.csv(mov_lad_tts, "/Volumes/DEBIAS/data/inputs/fb/census-week/tts/htw-lad-tts.csv")
+}
 
 ```
 
@@ -147,14 +159,14 @@ Checking the share of grids with average movement counts. *How many rows are NAs
 # original input data
  (sum(is.na(selected_gridded_data$n_crisis)) / nrow(selected_gridded_data)) * 100
 # aggregate data
- (sum(is.na(mov_lad_tts$month_avg_fb_mov)) / nrow(mov_lad_tts)) * 100
+ (sum(is.na(mov_lad_tts$avg_fb_mov)) / nrow(mov_lad_tts)) * 100
 ```
 
 ## Apporach 2: aggregating spatially and then averaging temporally
 
 ### Aggregate spatially
 
-```{r} 
+```{r}
 aggregate_gridded_start_sdf <- selected_gridded_data %>% 
   mutate(coords = str_extract(geometry, "(?<=\\().*(?=\\))")) %>% 
   separate(coords, into = c("start_coord", "end_coord"), sep = ", ") %>% 
@@ -190,7 +202,13 @@ aggregate_lad_df <- st_join(select(lad_sdf, "LAD21CD", "SHAPE"),
 ```{r}
 mov_lad_stt <- aggregate_lad_df %>%
   group_by( LAD21CD_start, LAD21CD_end ) %>%
-  summarise(month_avg_fb_mov = mean(n_crisis_LAD, na.rm = TRUE), .groups = "drop")
+  summarise(avg_fb_mov = mean(n_crisis_LAD, na.rm = TRUE), .groups = "drop")
+
+if (month == TRUE) {
+  write.csv(mov_lad_stt, "/Volumes/DEBIAS/data/inputs/fb/census-month/stt/htw-lad-stt.csv")
+} else {
+  write.csv(mov_lad_stt, "/Volumes/DEBIAS/data/inputs/fb/census-week/stt/htw-lad-stt.csv")
+}
 ```
 
 Checking the share of grids with average movement counts. *How many rows are NAs?*
@@ -199,7 +217,7 @@ Checking the share of grids with average movement counts. *How many rows are NAs
 # original input data
  (sum(is.na(selected_gridded_data$n_crisis)) / nrow(selected_gridded_data)) * 100
 # aggregate data
- (sum(is.na(mov_lad_stt$month_avg_fb_mov)) / nrow(mov_lad_stt)) * 100
+ (sum(is.na(mov_lad_stt$avg_fb_mov)) / nrow(mov_lad_stt)) * 100
 ```
 
 ## Test consistency in approaches
@@ -207,10 +225,8 @@ Checking the share of grids with average movement counts. *How many rows are NAs
 ```{r}
 joined_df <- mov_lad_tts %>%
   inner_join(mov_lad_stt, by = c("LAD21CD_start", "LAD21CD_end")) %>%
-  rename("month_avg_fb_mov_tts" = "month_avg_fb_mov.x",
-         "month_avg_fb_mov_stt" = "month_avg_fb_mov.y") 
+  rename("avg_fb_mov_tts" = "avg_fb_mov.x",
+         "avg_fb_mov_stt" = "avg_fb_mov.y") 
 
-plot(joined_df$month_avg_fb_mov_tts, joined_df$month_avg_fb_mov_stt)
+plot(joined_df$avg_fb_mov_tts, joined_df$avg_fb_mov_stt)
 ```
-
-

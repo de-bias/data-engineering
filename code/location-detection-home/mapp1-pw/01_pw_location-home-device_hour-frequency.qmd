@@ -25,7 +25,7 @@ library(fs)   # for file size detection
 # Directory
 
 ```{r}
-wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
+wd <- "/Volumes/DEBIAS/data/inputs/"
 ```
 
 # Select dates
@@ -102,7 +102,7 @@ Code below identifies unique device-location pairs, and retains night hours.
 
 ```{r}
 
-parquet_path <- file.path(wd, "geocoded-hex10")
+parquet_path <- file.path(wd, "mapp1", "geocoded-hex10")
 
 # Helper: choose optimal partitions
 choose_partitions <- function(path, cores) {
@@ -117,7 +117,7 @@ choose_partitions <- function(path, cores) {
 }
 
 num_cores <- parallel::detectCores()
-optimal_parts <- choose_partitions(file.path(wd, "geocoded-hex10"), num_cores)
+optimal_parts <- choose_partitions(file.path(wd, "mapp1", "geocoded-hex10"), num_cores)
 optimal_parts <- as.integer(optimal_parts)   # <<--- Safety, force integer again
 
 start_time <- Sys.time()
@@ -137,7 +137,7 @@ rdd_all <- df_all %>%
   summarise(total_count = n(), .groups = "drop")
 
 # Write output, partitioned by day, compressed
-output_path <- file.path(wd, "home" , "device-locations_22t07")
+output_path <- file.path(wd, "mapp1", "home" , "device-locations_22t07")
 if (dir_exists(output_path)) fs::dir_delete(output_path)
 
 spark_write_parquet(

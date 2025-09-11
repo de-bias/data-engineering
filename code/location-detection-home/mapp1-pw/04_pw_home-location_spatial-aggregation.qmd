@@ -27,15 +27,21 @@ library(tidyverse)
 # Directory
 
 ```{r}
-wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
+wd <- "/Volumes/DEBIAS/data/inputs"
 ```
 
 # Read geographies
 
 ```{r}
-sdf <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
+sdf_lad <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
   st_transform(crs = 4326)
+
+sdf_msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_2021_EW_BFC_V7.gpkg") %>% 
+  st_transform(crs = 4326) %>% 
+  select(c("MSOA21CD", "SHAPE")) %>%
+  rename("code" = "MSOA21CD")
 ```
+
 # Parquetised
 
 ## Read input data
@@ -53,11 +59,11 @@ choose_partitions <- function(path, cores) {
   return(as.integer(partitions))   # <<--- Ensure return is integer!
 }
 
-input_path <- file.path(wd, "home", "location-home")
+input_path <- file.path(wd, "mapp1", "home", "location-home")
 
 num_cores <- parallel::detectCores()
-optimal_parts <- choose_partitions(input_path, num_cores)
-optimal_parts <- as.integer(optimal_parts)   # <<--- Safety, force integer again
+# optimal_parts <- choose_partitions(input_path, num_cores)
+# optimal_parts <- as.integer(optimal_parts)   # <<--- Safety, force integer again
 
 start_time <- Sys.time()
 
@@ -66,7 +72,7 @@ config$`sparklyr.shell.driver-memory` <- '8G'
 sc <- spark_connect(master = "local", config = config)
 
 df <- spark_read_parquet(sc, path = input_path)
-df <- sdf_repartition(df, partitions = optimal_parts)
+# df <- sdf_repartition(df, partitions = optimal_parts)
 
 df_home_location <- df %>% collect()
 
@@ -94,22 +100,37 @@ unique_vec <- unique(df_home_location$device_aid)
 ```
 
 ```{r}
+
 coordinates <- h3_to_geo(df_home_location$location) %>% as_data_frame()
 sdf_home_location <- cbind(df_home_location, coordinates) %>% 
   st_as_sf( coords = c("lng", "lat") , crs = 4326)
 
-sdf_hex3 <- st_join(sdf, 
+# Aggregate into LAD 
+
+sdf_hex3 <- st_join(sdf_lad, 
                     sdf_home_location,
                     join = st_contains) 
 
-sdf_lda <- sdf_hex3 %>% 
+sdf_hex3_lad <- sdf_hex3 %>% 
   group_by(code) %>% 
   summarise( home_location_count = n( ))
 
-st_write(sdf_lda, "/Volumes/DEBIAS/data/outputs/mapp1/locations-home/lad/home-location-count_lda.gpkg")
+st_write(sdf_hex3_lad, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/lad/home-location-count_lda.gpkg")
+
+# Aggregate into MSOA
+
+sdf_hex3 <- st_join(sdf_msoa, 
+                    sdf_home_location,
+                    join = st_contains) 
+
+sdf_hex3_msoa <- sdf_hex3 %>% 
+  group_by(code) %>% 
+  summarise( home_location_count = n( ))
+
+st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/msoa/home-location-count_msoa.gpkg")
 ```
 
-## Non-parquetised experiments
+# Non-parquetised experiments
 
 ```{r}
 # df_home_location_csv <- read_csv("/Volumes/DEBIAS/data/inputs/pickwell/uk/location-home/part-00000-22616738-1d83-45b0-9be8-2b01fc18da31-c000.csv")
