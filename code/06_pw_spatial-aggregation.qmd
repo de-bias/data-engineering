@@ -18,26 +18,24 @@ Month or week? If month = TRUE, select data for March 2021, else for just a week
 month <- TRUE
 ```
 
-
 ```{r}
 
 # Define working directories
 if (month == TRUE) {
-  wd <- "/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk/2021/03"
+  wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk/2021/03"
 } else {
-  wd <- "/Volumes/rdm04/DEBIAS/data/inputs/pickwell/uk-week/raw"
+  wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk-week/raw"
 }
 
 if (month == TRUE) {
-  wd_geocoded <- "/Volumes/rdm04/DEBIAS/data/inputs/mapp1/aux/geocoded-hex10-month_aux"
+  wd_geocoded <- "/Volumes/DEBIAS/data/inputs/mapp1/aux/geocoded-hex10-month_aux"
 } else {
-  wd_geocoded <- "/Volumes/rdm04/DEBIAS/data/inputs/mapp1/aux/geocoded-hex10_aux"
+  wd_geocoded <- "/Volumes/DEBIAS/data/inputs/mapp1/aux/geocoded-hex10_aux"
 }
 
 # List all subfolders (dates)
 date_folders <- dir_ls(wd, type = "directory")
 
-date_folders <- date_folders[1]
 
 # Loop through each date folder
 for (date_folder in date_folders) {
@@ -50,8 +48,7 @@ for (date_folder in date_folders) {
   
   # List all .csv.gz files in the current folder
   csv_files <- dir_ls(date_folder, glob = "*.csv.gz")
-  
-  csv_files <- csv_files[1]
+ 
   
   # Process each file
   for (csv_file in csv_files) {
