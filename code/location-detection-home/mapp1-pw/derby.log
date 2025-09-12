@@ -1,6 +1,6 @@
 ----------------------------------------------------------------
-Thu Sep 11 15:51:23 BST 2025:
-Booting Derby version The Apache Software Foundation - Apache Derby - 10.14.2.0 - (1828579): instance a816c00e-0199-3942-7e25-0000130925b0 
+Fri Sep 12 10:32:22 BST 2025:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.14.2.0 - (1828579): instance a816c00e-0199-3d44-c990-00001ada4210 
 on database directory memory:/Users/carmen/Documents/github/de-bias/data-engineering/code/location-detection-home/mapp1-pw/databaseName=metastore_db with class loader sun.misc.Launcher$AppClassLoader@22a71081 
 Loaded from file:/Users/carmen/spark/spark-3.5.6-bin-hadoop3/jars/derby-10.14.2.0.jar
 java.vendor=Oracle Corporation
