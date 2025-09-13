@@ -25,10 +25,16 @@ library(fs)   # for file size detection
 # Directory
 
 ```{r}
-wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
+wd <- "/Volumes/DEBIAS/data/inputs"
 ```
 
 # Home locations
+
+```{r}
+# Month or week? If month == TRUE, work with data for March 2021. Else, work with data for first week of April 2021.
+
+month <- TRUE
+```
 
 ## Parquetised
 
@@ -42,14 +48,18 @@ choose_partitions <- function(path, cores) {
   partitions <- min(max(target_parts, cores), cores * 5)
   message(glue("Data size: {round(size_gb, 2)} GB"))
   message(glue("Using {cores} cores, chosen {partitions} partitions"))
-  return(as.integer(partitions))   # <<--- Ensure return is integer!
+  return(as.integer(partitions))   
 }
 
-input_path <- file.path(wd, "work", "device-locations-work_time-aggregation")
+if (month == TRUE) {
+  input_path <- file.path(wd, "mapp1", "work", "device-locations-work_time-aggregation_month")
+} else {
+  input_path <- file.path(wd, "mapp1", "work", "device-locations-work_time-aggregation")
+}
 
 num_cores <- parallel::detectCores()
 optimal_parts <- choose_partitions(input_path, num_cores)
-optimal_parts <- as.integer(optimal_parts)   # <<--- Safety, force integer again
+optimal_parts <- as.integer(optimal_parts)   
 
 start_time <- Sys.time()
 
@@ -73,8 +83,13 @@ rdd_2 <- rdd_1 %>%
   filter(is_work == TRUE) %>% 
   sdf_repartition(partitions = 1)
 
-output_path <- file.path(wd, "work", "location-work")
-if (dir_exists(output_path)) dir_delete(output_path)  # Clean up before writing
+if (month == TRUE) {
+  output_path <- file.path(wd, "mapp1", "work", "location-work_month")
+  if (dir_exists(output_path)) dir_delete(output_path) 
+} else {
+  output_path <- file.path(wd, "mapp1", "work", "location-work")
+  if (dir_exists(output_path)) dir_delete(output_path) 
+}
 
 # Write the final parquet
 spark_write_parquet(rdd_2, output_path)

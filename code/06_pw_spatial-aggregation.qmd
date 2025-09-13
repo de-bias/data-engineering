@@ -10,6 +10,7 @@ library(dplyr)       # For data manipulation
 library(h3)          # For geospatial indexing
 library(fs)          # For file operations
 library(readr)       # For reading and writing CSV files
+library(stringr)
 ```
 
 Month or week? If month = TRUE, select data for March 2021, else for just a week (1st week of April 2021)
@@ -18,11 +19,13 @@ Month or week? If month = TRUE, select data for March 2021, else for just a week
 month <- TRUE
 ```
 
+
 ```{r}
 
 # Define working directories
 if (month == TRUE) {
   wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk/2021/03"
+  monthyear <- paste0(str_sub(wd,-2,-1), str_sub(wd,-7,-4))
 } else {
   wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk-week/raw"
 }
@@ -36,6 +39,7 @@ if (month == TRUE) {
 # List all subfolders (dates)
 date_folders <- dir_ls(wd, type = "directory")
 
+date_folders <- date_folders[[length(date_folders) ]]
 
 # Loop through each date folder
 for (date_folder in date_folders) {
@@ -43,13 +47,16 @@ for (date_folder in date_folders) {
   date_name <- basename(date_folder)
   
   # Create corresponding output folder
-  output_folder <- file.path(wd_geocoded, date_name)
+  if (month == TRUE) {
+    output_folder <- file.path(wd_geocoded, paste0(date_name, monthyear))
+  } else {
+    output_folder <- file.path(wd_geocoded, date_name)
+  }
   dir_create(output_folder)
   
   # List all .csv.gz files in the current folder
   csv_files <- dir_ls(date_folder, glob = "*.csv.gz")
  
-  
   # Process each file
   for (csv_file in csv_files) {
     message("Processing: ", csv_file)
@@ -68,16 +75,16 @@ for (date_folder in date_folders) {
         hour = as.POSIXlt(as.POSIXct(timestamp, origin = "1970-01-01", tz = "GMT"))$hour,
         wday = as.POSIXlt(as.POSIXct(timestamp, origin = "1970-01-01", tz = "GMT"))$wday,
         day = format(as.POSIXlt(timestamp, origin = "1970-01-01", tz = "GMT"), "%Y-%m-%d"),
-        code_h3 = geo_to_h3(df[, c("latitude", "longitude")], 10) 
+        code_h3 = geo_to_h3(df[, c("latitude", "longitude")], 10)
       )
 
-    # Define output file name
-    file_name <- paste0(sub("\\..*", "", basename(csv_file)), "-geocoded.csv.gz")
-    print(file_name) #testing
-    output_path <- file.path(output_folder, file_name)
+  # Define output file name
+  file_name <- paste0(sub("\\..*", "", basename(csv_file)), "-geocoded.csv.gz")
+  print(file_name) #testing
+  output_path <- file.path(output_folder, file_name)
 
-    # Save the transformed data
-    write_csv(df_new, output_path)
+  # Save the transformed data
+  write_csv(df_new, output_path)
   }
 }
 ```

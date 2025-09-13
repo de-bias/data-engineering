@@ -44,6 +44,12 @@ sdf_msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec
 
 # Parquetised
 
+```{r}
+# Month or week? If month == TRUE, work with data for March 2021. Else, work with data for first week of April 2021.
+
+month <- TRUE
+```
+
 ## Read input data
 
 ```{r}
@@ -56,19 +62,21 @@ choose_partitions <- function(path, cores) {
   partitions <- min(max(target_parts, cores), cores * 5)
   message(glue("Data size: {round(size_gb, 2)} GB"))
   message(glue("Using {cores} cores, chosen {partitions} partitions"))
-  return(as.integer(partitions))   # <<--- Ensure return is integer!
+  return(as.integer(partitions))   
 }
 
-input_path <- file.path(wd, "mapp1", "home", "location-home")
+if (month == TRUE) {
+  input_path <- file.path(wd, "mapp1", "home", "location-home_month")
+} else {
+  input_path <- file.path(wd, "mapp1", "home", "location-home")
+}
 
 num_cores <- parallel::detectCores()
-# optimal_parts <- choose_partitions(input_path, num_cores)
-# optimal_parts <- as.integer(optimal_parts)   # <<--- Safety, force integer again
 
 start_time <- Sys.time()
 
 config <- spark_config()
-config$`sparklyr.shell.driver-memory` <- '8G'
+config$`sparklyr.shell.driver-memory` <- '40G'
 sc <- spark_connect(master = "local", config = config)
 
 df <- spark_read_parquet(sc, path = input_path)
@@ -115,7 +123,11 @@ sdf_hex3_lad <- sdf_hex3 %>%
   group_by(code) %>% 
   summarise( home_location_count = n( ))
 
-st_write(sdf_hex3_lad, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/lad/home-location-count_lda.gpkg")
+if (month == TRUE) {
+  st_write(sdf_hex3_lad, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/lad/home-location-count_lda-month.gpkg")
+} else {
+  st_write(sdf_hex3_lad, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/lad/home-location-count_lda.gpkg")
+}
 
 # Aggregate into MSOA
 
@@ -127,7 +139,11 @@ sdf_hex3_msoa <- sdf_hex3 %>%
   group_by(code) %>% 
   summarise( home_location_count = n( ))
 
-st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/msoa/home-location-count_msoa.gpkg")
+if (month == TRUE) {
+  st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/msoa/home-location-count_msoa-month.gpkg")
+} else {
+  st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/msoa/home-location-count_msoa.gpkg")
+}
 ```
 
 # Non-parquetised experiments

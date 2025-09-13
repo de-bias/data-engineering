@@ -1,5 +1,5 @@
 ---
-title: "07_pw_location-device_hour_frequency"
+title: "01_pw_location-device_hour_frequency"
 format: html
 editor: visual
 ---
@@ -25,15 +25,10 @@ library(fs)   # for file size detection
 # Directory
 
 ```{r}
-wd <- "/Volumes/rdm04/DEBIAS/data/inputs"
+wd <- "/Volumes/DEBIAS/data/inputs"
 ```
 
-
 # Identifying unique device-location pairs
-
-## Parquetised
-
-Careful with code chunk below, only uncomment if wanting to transform csv hex locations to parquet. Takes a while and only needs to be done once (or alternatively, modify 06 to write files as parquet directly).
 
 ```{r}
 # Month or week? If month == TRUE, work with data for March 2021. Else, work with data for first week of April 2021.
@@ -41,16 +36,15 @@ Careful with code chunk below, only uncomment if wanting to transform csv hex lo
 month <- TRUE
 ```
 
-```{r}
-file.path(wd, "aux/geocoded-hex10-month_aux")
-```
+## Parquetised
 
+Careful with code chunk below, only uncomment if wanting to transform csv hex locations to parquet. Takes a while and only needs to be done once (or alternatively, modify 06 to write files as parquet directly).
 
 ```{r}
 
 if (month == TRUE) {
   parquet_path <- file.path(wd, "mapp1", "geocoded-hex10-month")
-if (dir_exists(parquet_path)) dir_delete(parquet_path) 
+if (dir_exists(parquet_path)) dir_delete(parquet_path)
 } else {
   parquet_path <- file.path(wd, "mapp1", "geocoded-hex10")
 if (dir_exists(parquet_path)) dir_delete(parquet_path)
@@ -65,7 +59,7 @@ choose_partitions <- function(path, cores) {
   partitions <- min(max(target_parts, cores), cores * 5)
   message(glue("Data size: {round(size_gb, 2)} GB"))
   message(glue("Using {cores} cores, chosen {partitions} partitions"))
-  return(as.integer(partitions))   
+  return(as.integer(partitions))
 }
 
 num_cores <- parallel::detectCores()
@@ -74,7 +68,7 @@ if (month == TRUE) {
 } else {
   optimal_parts <- choose_partitions(file.path(wd, "mapp1/aux/geocoded-hex10_aux"), num_cores)
 }
-optimal_parts <- as.integer(optimal_parts)   
+optimal_parts <- as.integer(optimal_parts)
 
 config <- spark_config()
 config$`sparklyr.shell.driver-memory` <- '8G'
@@ -95,12 +89,10 @@ if (month == TRUE) {
     memory = FALSE
     ) %>%
     select(device_aid, code_h3, hour) %>%
-    mutate(day = regexp_extract(input_file_name(), ".*/geocoded-hex10/([^/]+)/.*", 1))
+    mutate(day = regexp_extract(input_file_name(), ".*/geocoded-hex10_aux/([^/]+)/.*", 1))
 }
 
 df_csv <- sdf_repartition(df_csv, partitions = optimal_parts)
-
-df_csv_check <- df_csv %>% collect()
 
 spark_write_parquet(df_csv, path = parquet_path, mode = "overwrite")
 ```
@@ -109,7 +101,11 @@ Code below identifies unique device-location pairs, and retains night hours.
 
 ```{r}
 
-parquet_path <- file.path(wd, "mapp1", "geocoded-hex10")
+if (month == TRUE) {
+  parquet_path <- file.path(wd, "mapp1", "geocoded-hex10-month")
+} else {
+  parquet_path <- file.path(wd, "mapp1", "geocoded-hex10")
+}
 
 # Helper: choose optimal partitions
 choose_partitions <- function(path, cores) {
@@ -120,12 +116,16 @@ choose_partitions <- function(path, cores) {
   partitions <- min(max(target_parts, cores), cores * 5)
   message(glue("Data size: {round(size_gb, 2)} GB"))
   message(glue("Using {cores} cores, chosen {partitions} partitions"))
-  return(as.integer(partitions))   # <<--- Ensure return is integer!
+  return(as.integer(partitions))   
 }
 
 num_cores <- parallel::detectCores()
-optimal_parts <- choose_partitions(file.path(wd, "mapp1", "geocoded-hex10"), num_cores)
-optimal_parts <- as.integer(optimal_parts)   # <<--- Safety, force integer again
+if (month == TRUE) {
+  optimal_parts <- choose_partitions(file.path(wd, "mapp1", "geocoded-hex10-month"), num_cores)
+} else {
+  optimal_parts <- choose_partitions(file.path(wd, "mapp1", "geocoded-hex10"), num_cores)
+}
+optimal_parts <- as.integer(optimal_parts)   
 
 start_time <- Sys.time()
 
@@ -144,8 +144,13 @@ rdd_all <- df_all %>%
   summarise(total_count = n(), .groups = "drop")
 
 # Write output, partitioned by day, compressed
-output_path <- file.path(wd, "mapp1", "home" , "device-locations_22t07")
-if (dir_exists(output_path)) fs::dir_delete(output_path)
+if (month == TRUE) {
+  output_path <- file.path(wd, "mapp1", "home" , "device-locations_22t07-month")
+  if (dir_exists(output_path)) fs::dir_delete(output_path)
+} else {
+  output_path <- file.path(wd, "mapp1", "home" , "device-locations_22t07")
+  if (dir_exists(output_path)) fs::dir_delete(output_path)
+}
 
 spark_write_parquet(
   rdd_all,
@@ -153,7 +158,6 @@ spark_write_parquet(
   partition_by = "day",
   mode = "overwrite"
 )
-
 
 spark_disconnect(sc)
 
@@ -221,20 +225,21 @@ Processing took 18.85 seconds
 Select dates
 
 ```{r}
-days <-  c(
-  "01042021",
-  "02042021",
-  "03042021",
-  "04042021",
-  "05042021",
-  "06042021",
-  "07042021"
-)
+# days <-  c(
+#   "01042021",
+#   "02042021",
+#   "03042021",
+#   "04042021",
+#   "05042021",
+#   "06042021",
+#   "07042021"
+# )
 
 # Uncomment if testing
 # days <-  c(
 #   "01042021")
 ```
+
 Processing took 16.64 seconds
 
 ```{r}
