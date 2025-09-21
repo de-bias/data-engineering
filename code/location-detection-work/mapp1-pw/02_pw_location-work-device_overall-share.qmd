@@ -52,7 +52,6 @@ choose_partitions <- function(path, cores) {
   return(as.integer(partitions))   # <<--- Ensure return is integer!
 }
 
-input_path <- file.path(wd, "work", "device-locations_09t16")
 
 if (month == TRUE) {
   input_path <- file.path(wd, "mapp1", "work", "device-locations_09t16-month")
