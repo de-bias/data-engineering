@@ -64,7 +64,7 @@ optimal_parts <- as.integer(optimal_parts)
 start_time <- Sys.time()
 
 config <- spark_config()
-config$`sparklyr.shell.driver-memory` <- '8G'
+config$`sparklyr.shell.driver-memory` <- '40G'
 sc <- spark_connect(master = "local", config = config)
 
 df <- spark_read_parquet(sc, path = input_path)
