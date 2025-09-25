@@ -47,7 +47,7 @@ sdf_msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec
 ```{r}
 # Month or week? If month == TRUE, work with data for March 2021. Else, work with data for first week of April 2021.
 
-month <- TRUE
+month <- FALSE
 ```
 
 ## Read input data
