@@ -105,7 +105,7 @@ selected_gridded_data <- subset(selected_gridded_data, format(selected_gridded_d
 # group by spatial unit and calculate average over time
 average_gridded_pop_df <- selected_gridded_data %>%
   group_by( quadkey, lat, lon ) %>%
-  summarise(week_avg_fb_pop = mean(n_crisis, na.rm = TRUE))
+  summarise(month_avg_fb_pop = mean(n_crisis, na.rm = TRUE))
 
 ```
 
@@ -115,7 +115,7 @@ Checking the share of grids with average population counts. *How many rows are N
 # original input data
  (sum(is.na(selected_gridded_data$n_crisis)) / nrow(selected_gridded_data)) * 100
 # aggregate data
- (sum(is.na(average_gridded_pop_df$week_avg_fb_pop)) / nrow(average_gridded_pop_df)) * 100
+ (sum(is.na(average_gridded_pop_df$month_avg_fb_pop)) / nrow(average_gridded_pop_df)) * 100
 ```
 
 ## Assign grids to polygons
@@ -139,7 +139,7 @@ point_map <- ggplot() +
 ## displaying population
 pop_map <- ggplot() +
   geom_sf(data = lda_shp, fill = "grey50", color = "black") +
-  geom_sf(data = average_gridded_pop_sf, aes(colour = week_avg_fb_pop) ) +
+  geom_sf(data = average_gridded_pop_sf, aes(colour = month_avg_fb_pop) ) +
   scale_color_viridis_c(option = "C") +
   theme_minimal()
 
@@ -151,7 +151,7 @@ point_map + pop_map
 ```{r}
 lad_fb_pop_sf <- fb_pop_sf %>%
   group_by( LAD21NM ) %>%
-  summarise(pop_dfd = round(sum(week_avg_fb_pop, na.rm = TRUE)) ) %>% 
+  summarise(pop_dfd = round(sum(month_avg_fb_pop, na.rm = TRUE)) ) %>% 
   st_drop_geometry()
 ```
 
@@ -187,6 +187,7 @@ lad_fb_pop_sfb <- long_fbpop_sf %>%
 ```{r}
 # aggregate pop counts - this produces the same result if this is implemented in the last line above directly
 lad_fb_pop_sf2 <- lad_fb_pop_sfb %>%
+  mutate(pop_dfdb = ifelse(pop_dfdb == 0, NA, pop_dfdb)) %>%
   group_by( LAD21NM ) %>%
   summarise(pop_dfd = round(mean(pop_dfdb, na.rm = TRUE)) ) %>% 
   st_drop_geometry()

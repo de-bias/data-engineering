@@ -39,7 +39,7 @@ FB gridded population data for March for week 15/03 to 21/03 and monthly (inc we
 csv_files <- list.files(path = "/Volumes/DEBIAS/data/inputs/fb/grids/populations/mar20-aug21", pattern = "\\.csv$", full.names = TRUE)
 
 # Select data for the week 15/03 to 21/03 of 2021 for resident population (i.e. 00.00 - 8.00)
-csv_files <- csv_files[c(1058, 1061, 1064, 1067, 1070, 1073, 1076, 1079, 1082)]
+csv_files <- csv_files[c(1066, 1069, 1072, 1075, 1078, 1081, 1084)]
 data_list <- lapply(csv_files, read.csv)
 
 # extract the date between underscores
@@ -60,8 +60,6 @@ names(data_list) <- sapply(basename(csv_files), function(x) {
 ```{r}
 lda_shp <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022.gpkg") %>% 
   st_transform(crs="EPSG:4326") %>% 
-  st_simplify(preserveTopology =T, # simplify boundaries
-              dTolerance = 1000) %>%  # 1km
   sf::st_make_valid()  # check the geometry is valid
   
 ggplot() + 
@@ -105,10 +103,8 @@ selected_gridded_data <- combined_data %>%
 # convert the time stamp column to POSIXct date-time format
 selected_gridded_data$timestamp <- as.POSIXct(selected_gridded_data$date_time, format = "%Y-%m-%d %H:%M")
 
-# filter night-time population
-selected_gridded_data <- subset(selected_gridded_data, format(selected_gridded_data$timestamp, "%H:%M") == "00:00")
-
-
+# filter night-time population: 4 PM pacific time is 0 AM UK time
+selected_gridded_data <- subset(selected_gridded_data, format(selected_gridded_data$timestamp, "%H:%M") == "16:00")
 
 # group by spatial unit and calculate average over time
 average_gridded_pop_df <- selected_gridded_data %>%
@@ -188,13 +184,16 @@ lad_fb_pop_sfb <- long_fbpop_sf %>%
   group_by( LAD21NM, timestamp ) %>%
   summarise(pop_dfdb = round(sum(n_crisis, na.rm = TRUE)) ) %>% 
   st_drop_geometry()
+
 ```
 
 ## Averaging temporally
 
 ```{r}
+
 # aggregate pop counts - this produces the same result if this is implemented in the last line above directly
 lad_fb_pop_sf2 <- lad_fb_pop_sfb %>%
+  mutate(pop_dfdb = ifelse(pop_dfdb == 0, NA, pop_dfdb)) %>%
   group_by( LAD21NM ) %>%
   summarise(pop_dfd = round(mean(pop_dfdb, na.rm = TRUE)) ) %>% 
   st_drop_geometry()
