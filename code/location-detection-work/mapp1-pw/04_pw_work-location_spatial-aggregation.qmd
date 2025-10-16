@@ -97,20 +97,13 @@ print(end_time - start_time)
 
 ## Aggregate into geographies and save as gpkg
 
-```{r}
-# Create the histogram
-ggplot(df_work_location, aes(x = percent)) +
-  geom_histogram(fill = "skyblue", color = "black", bins = 50) +
-  labs(title = "Histogram of Percent", x = "Percent", y = "Frequency") +
-  theme_minimal()
-```
 
 ```{r}
 unique_vec <- unique(df_work_location$device_aid)
 ```
 
 ```{r}
-coordinates <- h3_to_geo(df_work_location$location) %>% as_data_frame()
+coordinates <- h3_to_geo(df_work_location$location) %>% as_tibble()
 sdf_work_location <- cbind(df_work_location, coordinates) %>% 
   st_as_sf( coords = c("lng", "lat") , crs = 4326)
 
