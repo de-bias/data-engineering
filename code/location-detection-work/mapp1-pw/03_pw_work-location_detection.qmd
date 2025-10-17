@@ -33,7 +33,7 @@ wd <- "/Volumes/DEBIAS/data/inputs"
 ```{r}
 # Month or week? If month == TRUE, work with data for March 2021. Else, work with data for first week of April 2021.
 
-month <- TRUE
+month <- FALSE
 ```
 
 ## Parquetised

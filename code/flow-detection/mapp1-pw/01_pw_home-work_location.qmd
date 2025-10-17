@@ -22,12 +22,13 @@ library(sf)
 library(ggplot2)
 library(h3)
 library(tidyverse)
+library(fs)
 ```
 
 # Directory
 
 ```{r}
-wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
+wd <- "/Volumes/DEBIAS/data/inputs/"
 ```
 
 # Parquetised
@@ -35,7 +36,7 @@ wd <- "/Volumes/DEBIAS/data/inputs/pickwell/uk"
 ```{r}
 # Month or week? If month == TRUE, work with data for March 2021. Else, work with data for first week of April 2021.
 
-month <- TRUE
+month <- FALSE
 ```
 
 ## Read input data
@@ -62,7 +63,7 @@ sc <- spark_connect(master = "local", config = config)
 num_cores <- parallel::detectCores()
 
 if (month == TRUE) {
-  input_path_home <- file.path(wd, "mapp1", "home", "location-home-month")
+  input_path_home <- file.path(wd, "mapp1", "home", "location-home_month")
 } else {
   input_path_home <- file.path(wd, "mapp1", "home", "location-home")
 }
@@ -74,7 +75,7 @@ df_home_location <- df_home %>% collect()
 
 
 if (month == TRUE) {
-  input_path_work <- file.path(wd, "mapp1", "work", "location-work-month")
+  input_path_work <- file.path(wd, "mapp1", "work", "location-work_month")
 } else {
   input_path_work <- file.path(wd, "mapp1", "work", "location-work")
 }
@@ -182,7 +183,7 @@ sdf_home_hex3 <- st_join(sdf,
 
 df_hw_2 <- sdf_home_hex3 %>%
   st_drop_geometry(sdf_home_hex3) %>%
-  rename(code_home = code)
+  rename(code_home = MSOA21CD)
   
 coordinates <- h3_to_geo(df_hw_2$location_work) %>% as_data_frame()
 sdf_work_location <- cbind(df_hw_2, coordinates) %>% 
@@ -194,7 +195,7 @@ sdf_work_hex3 <- st_join(sdf,
 
 df_hw_2 <- sdf_work_hex3 %>%
   st_drop_geometry(sdf_work_hex3) %>%
-  rename(code_work = code)
+  rename(code_work = MSOA21CD)
 ```
 
 ## Group by LAD home and work
@@ -205,8 +206,8 @@ df_flows <- df_hw_2 %>%
   summarise(count = n(), .groups = "drop")
 
 if (month == TRUE) {
-  write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/lad/flow-home-work_msoa_htw_pw-month.csv")
+  write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/msoa/flow-home-work_msoa_htw_pw-month.csv")
 } else {
-  write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/lad/flow-home-work_msoa_htw_pw.csv")
+  write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/msoa/flow-home-work_msoa_htw_pw.csv")
 }
 ```
