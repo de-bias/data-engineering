@@ -22,6 +22,7 @@ library(sf)   # for file size detection
 library(ggplot2)
 library(h3)
 library(tidyverse)
+library(fs)
 ```
 
 # Directory
@@ -96,7 +97,6 @@ print(end_time - start_time)
 ```
 
 ## Aggregate into geographies and save as gpkg
-
 
 ```{r}
 unique_vec <- unique(df_work_location$device_aid)
