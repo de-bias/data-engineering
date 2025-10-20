@@ -41,6 +41,11 @@ sdf_msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec
   st_transform(crs = 4326) %>% 
   select(c("MSOA21CD", "SHAPE")) %>%
   rename("code" = "MSOA21CD")
+
+sdf_lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec_2021_EW_BFC_V10.gpkg") %>% 
+  st_transform(crs = 4326) %>% 
+  select(c("LSOA21CD", "SHAPE")) %>%
+  rename("code" = "LSOA21CD")
 ```
 
 # Parquetised
@@ -138,6 +143,24 @@ if (month == TRUE) {
 } else {
   st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-work/msoa/work-location-count_msoa.gpkg")
 }
+
+
+# Aggregate into LSOA
+
+sdf_hex3 <- st_join(sdf_lsoa, 
+                    sdf_work_location,
+                    join = st_contains) 
+
+sdf_hex3_lsoa <- sdf_hex3 %>% 
+  group_by(code) %>% 
+  summarise( work_location_count = n( ))
+
+if (month == TRUE) {
+  st_write(sdf_hex3_lsoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-work/lsoa/work-location-count_lsoa-month.gpkg")
+} else {
+  st_write(sdf_hex3_lsoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-work/lsoa/work-location-count_lsoa.gpkg")
+}
+
 ```
 
 # Non-parquetised experiments
