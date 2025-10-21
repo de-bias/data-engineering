@@ -43,7 +43,7 @@ sdf_msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec
   rename("code" = "MSOA21CD")
 
 
-sdf_lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/Lower_layer_Super_Output_Areas_(December_2021)_Boundaries_EW_BFC_(V10).geojson")  %>% 
+sdf_lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec_2021_Boundaries_EW_BFC_V10.gpkg")  %>% 
   st_transform(crs = 4326) %>% 
   select(c("LSOA21CD", "SHAPE")) %>%
   rename("code" = "LSOA21CD")
