@@ -34,14 +34,13 @@ wd <- "/Volumes/DEBIAS/data/inputs"
 # Read geographies
 
 ```{r}
-sdf_lad <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
-  st_transform(crs = 4326)
-
-sdf_msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_2021_EW_BFC_V7.gpkg") %>% 
-  st_transform(crs = 4326) %>% 
-  select(c("MSOA21CD", "SHAPE")) %>%
-  rename("code" = "MSOA21CD")
-
+# sdf_lad <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
+#   st_transform(crs = 4326)
+# 
+# sdf_msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_2021_EW_BFC_V7.gpkg") %>% 
+#   st_transform(crs = 4326) %>% 
+#   select(c("MSOA21CD", "SHAPE")) %>%
+#   rename("code" = "MSOA21CD")
 
 sdf_lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec_2021_Boundaries_EW_BFC_V10.gpkg")  %>% 
   st_transform(crs = 4326) %>% 
@@ -55,7 +54,7 @@ sdf_lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec
 ```{r}
 # Month or week? If month == TRUE, work with data for March 2021. Else, work with data for first week of April 2021.
 
-month <- FALSE
+month <- TRUE
 ```
 
 ## Read input data
@@ -114,37 +113,37 @@ coordinates <- h3_to_geo(df_work_location$location) %>% as_tibble()
 sdf_work_location <- cbind(df_work_location, coordinates) %>% 
   st_as_sf( coords = c("lng", "lat") , crs = 4326)
 
-# Aggregate into LAD 
+# # Aggregate into LAD 
+# 
+# sdf_hex3 <- st_join(sdf_lad, 
+#                     sdf_work_location,
+#                     join = st_contains) 
+# 
+# sdf_hex3_lad <- sdf_hex3 %>% 
+#   group_by(code) %>% 
+#   summarise( work_location_count = n( ))
+# 
+# if (month == TRUE) {
+#   st_write(sdf_hex3_lad, "/Volumes/DEBIAS/data/inputs/mapp1/locations-work/lad/work-location-count_lda-month.gpkg")
+# } else {
+#   st_write(sdf_hex3_lad, "/Volumes/DEBIAS/data/inputs/mapp1/locations-work/lad/work-location-count_lda.gpkg")
+# }
 
-sdf_hex3 <- st_join(sdf_lad, 
-                    sdf_work_location,
-                    join = st_contains) 
-
-sdf_hex3_lad <- sdf_hex3 %>% 
-  group_by(code) %>% 
-  summarise( work_location_count = n( ))
-
-if (month == TRUE) {
-  st_write(sdf_hex3_lad, "/Volumes/DEBIAS/data/inputs/mapp1/locations-work/lad/work-location-count_lda-month.gpkg")
-} else {
-  st_write(sdf_hex3_lad, "/Volumes/DEBIAS/data/inputs/mapp1/locations-work/lad/work-location-count_lda.gpkg")
-}
-
-# Aggregate into MSOA
-
-sdf_hex3 <- st_join(sdf_msoa, 
-                    sdf_work_location,
-                    join = st_contains) 
-
-sdf_hex3_msoa <- sdf_hex3 %>% 
-  group_by(code) %>% 
-  summarise( work_location_count = n( ))
-
-if (month == TRUE) {
-  st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-work/msoa/work-location-count_msoa-month.gpkg")
-} else {
-  st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-work/msoa/work-location-count_msoa.gpkg")
-}
+# # Aggregate into MSOA
+# 
+# sdf_hex3 <- st_join(sdf_msoa, 
+#                     sdf_work_location,
+#                     join = st_contains) 
+# 
+# sdf_hex3_msoa <- sdf_hex3 %>% 
+#   group_by(code) %>% 
+#   summarise( work_location_count = n( ))
+# 
+# if (month == TRUE) {
+#   st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-work/msoa/work-location-count_msoa-month.gpkg")
+# } else {
+#   st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-work/msoa/work-location-count_msoa.gpkg")
+# }
 
 
 # Aggregate into LSOA
