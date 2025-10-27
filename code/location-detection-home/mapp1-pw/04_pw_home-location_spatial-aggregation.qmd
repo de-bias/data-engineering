@@ -33,13 +33,13 @@ wd <- "/Volumes/DEBIAS/data/inputs"
 # Read geographies
 
 ```{r}
-sdf_lad <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
-  st_transform(crs = 4326)
+# sdf_lad <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
+#   st_transform(crs = 4326)
 
-sdf_msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_2021_EW_BFC_V7.gpkg") %>% 
-  st_transform(crs = 4326) %>% 
-  select(c("MSOA21CD", "SHAPE")) %>%
-  rename("code" = "MSOA21CD")
+# sdf_msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_2021_EW_BFC_V7.gpkg") %>% 
+#   st_transform(crs = 4326) %>% 
+#   select(c("MSOA21CD", "SHAPE")) %>%
+#   rename("code" = "MSOA21CD")
 
 sdf_lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec_2021_EW_BFC_V10.gpkg") %>% 
   st_transform(crs = 4326) %>% 
@@ -101,54 +101,43 @@ print(end_time - start_time)
 ## Aggregate into geographies and save as gpkg
 
 ```{r}
-# Create the histogram
-ggplot(df_home_location, aes(x = percent)) +
-  geom_histogram(fill = "skyblue", color = "black", bins = 50) +
-  labs(title = "Histogram of Percent", x = "Percent", y = "Frequency") +
-  theme_minimal()
-```
-
-```{r}
-unique_vec <- unique(df_home_location$device_aid)
-```
-
-```{r}
 
 coordinates <- h3_to_geo(df_home_location$location) %>% as_data_frame()
+
 sdf_home_location <- cbind(df_home_location, coordinates) %>% 
   st_as_sf( coords = c("lng", "lat") , crs = 4326)
 
 # Aggregate into LAD 
 
-sdf_hex3 <- st_join(sdf_lad, 
-                    sdf_home_location,
-                    join = st_contains) 
-
-sdf_hex3_lad <- sdf_hex3 %>% 
-  group_by(code) %>% 
-  summarise( home_location_count = n( ))
-
-if (month == TRUE) {
-  st_write(sdf_hex3_lad, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/lad/home-location-count_lda-month.gpkg")
-} else {
-  st_write(sdf_hex3_lad, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/lad/home-location-count_lda.gpkg")
-}
+# sdf_hex3 <- st_join(sdf_lad, 
+#                     sdf_home_location,
+#                     join = st_contains) 
+# 
+# sdf_hex3_lad <- sdf_hex3 %>% 
+#   group_by(code) %>% 
+#   summarise( home_location_count = n( ))
+# 
+# if (month == TRUE) {
+#   st_write(sdf_hex3_lad, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/lad/home-location-count_lda-month.gpkg")
+# } else {
+#   st_write(sdf_hex3_lad, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/lad/home-location-count_lda.gpkg")
+# }
 
 # Aggregate into MSOA
 
-sdf_hex3 <- st_join(sdf_msoa, 
-                    sdf_home_location,
-                    join = st_contains) 
-
-sdf_hex3_msoa <- sdf_hex3 %>% 
-  group_by(code) %>% 
-  summarise( home_location_count = n( ))
-
-if (month == TRUE) {
-  st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/msoa/home-location-count_msoa-month.gpkg")
-} else {
-  st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/msoa/home-location-count_msoa.gpkg")
-}
+# sdf_hex3 <- st_join(sdf_msoa, 
+#                     sdf_home_location,
+#                     join = st_contains) 
+# 
+# sdf_hex3_msoa <- sdf_hex3 %>% 
+#   group_by(code) %>% 
+#   summarise( home_location_count = n( ))
+# 
+# if (month == TRUE) {
+#   st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/msoa/home-location-count_msoa-month.gpkg")
+# } else {
+#   st_write(sdf_hex3_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/locations-home/msoa/home-location-count_msoa.gpkg")
+# }
 
 
 # Aggregate into LSOA
