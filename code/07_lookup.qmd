@@ -1,0 +1,120 @@
+---
+title: "lookup hex-lad-msoa-lsoa"
+format: html
+editor: visual
+---
+
+```{r}
+library(sf)
+library(dplyr)
+library(purrr)
+library(h3r)   
+library(arrow)   
+library(ggplot2)
+```
+
+# Read data 
+
+```{r}
+lad  <- st_read("/Users/carmen/Desktop/LAD_Dec_2021_GB_BFC_2022.gpkg") %>%
+  st_transform(4326)
+
+msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_2021_EW_BFC_V7.gpkg") %>%
+  st_transform(4326)
+
+lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec_2021_EW_BFC_V10.gpkg") %>%
+  st_transform(4326)
+```
+# Create hexagonal grid
+
+## Choose resolution
+
+```{r}
+res <- 10
+```
+
+## Make grid
+
+```{r}
+
+# drop the repeated closing vertex if present
+drop_closing_vertex <- function(mat) {
+  if (nrow(mat) > 2 && all(mat[1, ] == mat[nrow(mat), ])) {
+    mat <- mat[-nrow(mat), , drop = FALSE]
+  }
+  mat
+}
+
+# Convert sfc to the "GeoJSON-like" structure that h3r expects
+sfc_to_h3r_polygons <- function(sfc) {
+  sfc <- sf::st_cast(sfc, "MULTIPOLYGON", warn = FALSE)
+  lapply(sfc, function(mp) {
+    lapply(mp, function(poly) {
+      lapply(poly, function(ring) drop_closing_vertex(ring[, 1:2, drop = FALSE]))
+    })
+  })
+}
+
+# build the polygons list for your gdf
+polys_by_feature <- sfc_to_h3r_polygons(sf::st_geometry(lad))
+
+# fet H3 cells for every feature in gdf, combine & dedupe
+cells_all <- unique(unlist(lapply(polys_by_feature, function(polys) {
+  unlist(polygonToCells(polys, resolution = res, isLatLng = FALSE))
+}), use.names = FALSE))
+
+# # flatten cells to a single vector of H3 indexes
+cells_vec <- unique(unlist(cells_all, use.names = FALSE))
+ 
+hex_sf <- h3::h3_to_geo_sf(cells_vec)
+
+```
+
+## Plot grid (optional)
+
+```{r}
+
+# 
+# xlim_vals <- c(-2, 0)
+# ylim_vals <- c(52, 52.5)
+# 
+# # plot overlay with ggplot2 
+# ggplot() +
+#   geom_sf(data = lad, fill = NA, linewidth = 0.8) +
+#   geom_sf(data = hex_sf, alpha = 0.35) +
+#   coord_sf(
+#     expand = FALSE,
+#     xlim = xlim_vals,
+#     ylim = ylim_vals
+#   ) +
+#   labs(title = paste0("First LAD feature with H3 hexagons"),
+#   theme_minimal()
+```
+# Spatial join of cells with admin units
+
+```{r}
+hex_sf <- st_join(
+  hex_sf,
+  lad %>% select(LAD21CD),
+  join = st_within
+) 
+
+hex_sf <- st_join(
+  hex_sf,
+  msoa %>% select(MSOA21CD),
+  join = st_within
+)
+
+hex_sf <- st_join(
+  hex_sf,
+  lsoa %>% select(LSOA21CD),
+  join = st_within
+)
+```
+
+# Save
+
+```{r}
+sf::st_write(hex_sf, "/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/hex10-lsoa-msoa-lad.gpkg")
+```
+
