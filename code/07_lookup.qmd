@@ -13,10 +13,10 @@ library(arrow)
 library(ggplot2)
 ```
 
-# Read data 
+# Read data
 
 ```{r}
-lad  <- st_read("/Users/carmen/Desktop/LAD_Dec_2021_GB_BFC_2022.gpkg") %>%
+lad  <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022.gpkg") %>%
   st_transform(4326)
 
 msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_2021_EW_BFC_V7.gpkg") %>%
@@ -25,6 +25,7 @@ msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_202
 lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec_2021_EW_BFC_V10.gpkg") %>%
   st_transform(4326)
 ```
+
 # Create hexagonal grid
 
 ## Choose resolution
@@ -90,6 +91,7 @@ hex_sf <- h3::h3_to_geo_sf(cells_vec)
 #   labs(title = paste0("First LAD feature with H3 hexagons"),
 #   theme_minimal()
 ```
+
 # Spatial join of cells with admin units
 
 ```{r}
@@ -117,4 +119,3 @@ hex_sf <- st_join(
 ```{r}
 sf::st_write(hex_sf, "/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/hex10-lsoa-msoa-lad.gpkg")
 ```
-
