@@ -110,41 +110,52 @@ df_work_aux <- df_work_location %>%
 df_hw <- inner_join(df_home_aux, df_work_aux, by=c('device_aid_home' = 'device_aid_work'))
 ```
 
-## Add LAD
+# Add geographies
 
-### Read geographies
+## Add LAD codes
 
 ```{r}
-sdf <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022_simplified.gpkg") %>% 
-  st_transform(crs = 4326)
+df_hw_2 <- df_hw %>%
+  merge(df_lookup %>%
+          st_drop_geometry() %>%
+          select(h3_index, LAD21CD),
+        by = c("location_home", "LAD21CD")
+        ) %>%
+  rename(code_home, LAD21CD) %>%
+  merge(df_lookup %>%
+          st_drop_geometry() %>%
+          select(h3_index, LAD21CD),
+        by = c("location_work", "LAD21CD")
+        ) %>%
+  rename(code_work, LAD21CD) 
+  
 ```
 
-### Add LAD codes
 
 ```{r}
-coordinates <- h3_to_geo(df_hw$location_home) %>% as_data_frame()
-sdf_home_location <- cbind(df_hw, coordinates) %>% 
-  st_as_sf( coords = c("lng", "lat") , crs = 4326)
-
-sdf_home_hex3 <- st_join(sdf, 
-                    sdf_home_location,
-                    join = st_contains) 
-
-df_hw_2 <- sdf_home_hex3 %>%
-  st_drop_geometry(sdf_home_hex3) %>%
-  rename(code_home = code)
-  
-coordinates <- h3_to_geo(df_hw_2$location_work) %>% as_data_frame()
-sdf_work_location <- cbind(df_hw_2, coordinates) %>% 
-  st_as_sf( coords = c("lng", "lat") , crs = 4326)
-
-sdf_work_hex3 <- st_join(sdf, 
-                    sdf_work_location,
-                    join = st_contains) 
-
-df_hw_2 <- sdf_work_hex3 %>%
-  st_drop_geometry(sdf_work_hex3) %>%
-  rename(code_work = code)
+# coordinates <- h3_to_geo(df_hw$location_home) %>% as_data_frame()
+# sdf_home_location <- cbind(df_hw, coordinates) %>% 
+#   st_as_sf( coords = c("lng", "lat") , crs = 4326)
+# 
+# sdf_home_hex3 <- st_join(sdf, 
+#                     sdf_home_location,
+#                     join = st_contains) 
+# 
+# df_hw_2 <- sdf_home_hex3 %>%
+#   st_drop_geometry(sdf_home_hex3) %>%
+#   rename(code_home = code)
+#   
+# coordinates <- h3_to_geo(df_hw_2$location_work) %>% as_data_frame()
+# sdf_work_location <- cbind(df_hw_2, coordinates) %>% 
+#   st_as_sf( coords = c("lng", "lat") , crs = 4326)
+# 
+# sdf_work_hex3 <- st_join(sdf, 
+#                     sdf_work_location,
+#                     join = st_contains) 
+# 
+# df_hw_2 <- sdf_work_hex3 %>%
+#   st_drop_geometry(sdf_work_hex3) %>%
+#   rename(code_work = code)
 ```
 
 ## Group by LAD home and work
@@ -161,44 +172,53 @@ if (month == TRUE) {
 }
 ```
 
-## Add MSOA
 
-### Read geographies
-
-```{r}
-sdf <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_2021_EW_BFC_V7.gpkg") %>% 
-  st_transform(crs = 4326)
-```
-
-### Add MSOA codes
+## Add MSOA codes
 
 ```{r}
-coordinates <- h3_to_geo(df_hw$location_home) %>% as_data_frame()
-sdf_home_location <- cbind(df_hw, coordinates) %>% 
-  st_as_sf( coords = c("lng", "lat") , crs = 4326)
-
-sdf_home_hex3 <- st_join(sdf, 
-                    sdf_home_location,
-                    join = st_contains) 
-
-df_hw_2 <- sdf_home_hex3 %>%
-  st_drop_geometry(sdf_home_hex3) %>%
-  rename(code_home = MSOA21CD)
+df_hw_2 <- df_hw %>%
+  merge(df_lookup %>%
+          st_drop_geometry() %>%
+          select(h3_index, MSOA21CD),
+        by = c("location_home", "MSOA21CD")
+        ) %>%
+  rename(code_home, MSOA21CD) %>%
+  merge(df_lookup %>%
+          st_drop_geometry() %>%
+          select(h3_index, MSOA21CD),
+        by = c("location_work", "MSOA21CD")
+        ) %>%
+  rename(code_work, MSOA21CD) 
   
-coordinates <- h3_to_geo(df_hw_2$location_work) %>% as_data_frame()
-sdf_work_location <- cbind(df_hw_2, coordinates) %>% 
-  st_as_sf( coords = c("lng", "lat") , crs = 4326)
-
-sdf_work_hex3 <- st_join(sdf, 
-                    sdf_work_location,
-                    join = st_contains) 
-
-df_hw_2 <- sdf_work_hex3 %>%
-  st_drop_geometry(sdf_work_hex3) %>%
-  rename(code_work = MSOA21CD)
 ```
 
-## Group by LAD home and work
+```{r}
+# coordinates <- h3_to_geo(df_hw$location_home) %>% as_data_frame()
+# sdf_home_location <- cbind(df_hw, coordinates) %>%
+#   st_as_sf( coords = c("lng", "lat") , crs = 4326)
+# 
+# sdf_home_hex3 <- st_join(sdf,
+#                     sdf_home_location,
+#                     join = st_contains)
+# 
+# df_hw_2 <- sdf_home_hex3 %>%
+#   st_drop_geometry(sdf_home_hex3) %>%
+#   rename(code_home = MSOA21CD)
+# 
+# coordinates <- h3_to_geo(df_hw_2$location_work) %>% as_data_frame()
+# sdf_work_location <- cbind(df_hw_2, coordinates) %>%
+#   st_as_sf( coords = c("lng", "lat") , crs = 4326)
+# 
+# sdf_work_hex3 <- st_join(sdf,
+#                     sdf_work_location,
+#                     join = st_contains)
+# 
+# df_hw_2 <- sdf_work_hex3 %>%
+#   st_drop_geometry(sdf_work_hex3) %>%
+#   rename(code_work = MSOA21CD)
+```
+
+## Group by MSOA home and work
 
 ```{r}
 df_flows <- df_hw_2 %>%
@@ -209,5 +229,37 @@ if (month == TRUE) {
   write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/msoa/flow-home-work_msoa_htw_pw-month.csv")
 } else {
   write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/msoa/flow-home-work_msoa_htw_pw.csv")
+}
+```
+
+## Add LSOA codes
+
+```{r}
+df_hw_2 <- df_hw %>%
+  merge(df_lookup %>%
+          st_drop_geometry() %>%
+          select(h3_index, LSOA21CD),
+        by = c("location_home", "LSOA21CD")
+        ) %>%
+  rename(code_home, LSOA21CD) %>%
+  merge(df_lookup %>%
+          st_drop_geometry() %>%
+          select(h3_index, LSOA21CD),
+        by = c("location_work", "LSOA21CD")
+        ) %>%
+  rename(code_work, LSOA21CD) 
+```
+
+## Group by LSOA home and work
+
+```{r}
+df_flows <- df_hw_2 %>%
+  group_by(code_work, code_home) %>%
+  summarise(count = n(), .groups = "drop")
+
+if (month == TRUE) {
+  write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/lsoa/flow-home-work_lsoa_htw_pw-month.csv")
+} else {
+  write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/lsoa/flow-home-work_lsoa_htw_pw.csv")
 }
 ```

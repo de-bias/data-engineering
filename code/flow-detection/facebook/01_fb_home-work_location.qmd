@@ -146,9 +146,9 @@ mov_lad_tts <- st_join(lad_sdf,
   summarise(avg_fb_mov = sum(avg_fb_mov, na.rm = FALSE), .groups = "drop")
 
 if (month == TRUE) {
-  write.csv(mov_lad_tts, "/Volumes/DEBIAS/data/inputs/fb/census-month/tts/htw-lad-tts.csv")
+  write.csv(mov_lad_tts, "/Volumes/DEBIAS/data/inputs/fb/flows/tts/htw-lad-tts-month.csv")
 } else {
-  write.csv(mov_lad_tts, "/Volumes/DEBIAS/data/inputs/fb/census-week/tts/htw-lad-tts.csv")
+  write.csv(mov_lad_tts, "/Volumes/DEBIAS/data/inputs/fb/flows/tts/htw-lad-tts.csv")
 }
 
 ```
@@ -205,9 +205,9 @@ mov_lad_stt <- aggregate_lad_df %>%
   summarise(avg_fb_mov = mean(n_crisis_LAD, na.rm = TRUE), .groups = "drop")
 
 if (month == TRUE) {
-  write.csv(mov_lad_stt, "/Volumes/DEBIAS/data/inputs/fb/census-month/stt/htw-lad-stt.csv")
+  write.csv(mov_lad_stt, "/Volumes/DEBIAS/data/inputs/fb/flows/stt/htw-lad-stt-month.csv")
 } else {
-  write.csv(mov_lad_stt, "/Volumes/DEBIAS/data/inputs/fb/census-week/stt/htw-lad-stt.csv")
+  write.csv(mov_lad_stt, "/Volumes/DEBIAS/data/inputs/fb/flows/stt/htw-lad-stt.csv")
 }
 ```
 

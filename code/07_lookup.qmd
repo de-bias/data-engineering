@@ -31,7 +31,7 @@ lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec_202
 ## Choose resolution
 
 ```{r}
-res <- 10
+res <- 7
 ```
 
 ## Make grid
@@ -70,6 +70,20 @@ cells_vec <- unique(unlist(cells_all, use.names = FALSE))
 hex_sf <- h3::h3_to_geo_sf(cells_vec)
 
 ```
+
+## Faster way: compute grid at higher res (hex 7) then, make grid for children at higher res (hex 10)
+
+```{r}
+hex_children <- unique(unlist(lapply(hex_sf$h3_index, function(p) {
+  h3::h3_to_children(p, res = 10)
+}), use.names = FALSE))
+
+
+hex_sf <- data.frame(h3_index = hex_children) %>%
+  bind_cols(h3::h3_to_geo(hex_sf$h3_index)) %>%
+  st_as_sf(coords = c("lat", "lng"), crs = 4326)
+```
+
 
 ## Plot grid (optional)
 
