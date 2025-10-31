@@ -31,7 +31,7 @@ lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec_202
 ## Choose resolution
 
 ```{r}
-res <- 7
+res <- 5
 ```
 
 ## Make grid
@@ -84,7 +84,6 @@ hex_sf <- data.frame(h3_index = hex_children) %>%
   st_as_sf(coords = c("lat", "lng"), crs = 4326)
 ```
 
-
 ## Plot grid (optional)
 
 ```{r}
@@ -111,25 +110,41 @@ hex_sf <- data.frame(h3_index = hex_children) %>%
 ```{r}
 hex_sf <- st_join(
   hex_sf,
-  lad %>% select(LAD21CD),
+  lad %>% dplyr::select(LAD21CD),
   join = st_within
 ) 
 
 hex_sf <- st_join(
   hex_sf,
-  msoa %>% select(MSOA21CD),
+  msoa %>% dplyr::select(MSOA21CD),
   join = st_within
 )
 
 hex_sf <- st_join(
   hex_sf,
-  lsoa %>% select(LSOA21CD),
+  lsoa %>% dplyr::select(LSOA21CD),
   join = st_within
 )
 ```
 
-# Save
+# Drop geometry
 
 ```{r}
-sf::st_write(hex_sf, "/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/hex10-lsoa-msoa-lad.gpkg")
+lookup <- hex_sf %>%
+  st_drop_geometry()
 ```
+
+# Save
+
+## Save geopackage
+
+```{r}
+# sf::st_write(hex_sf, "/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/hex10-lsoa-msoa-lad.gpkg")
+```
+
+## Save csv
+
+```{r}
+write.csv(lookup, "/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/hex10-lsoa-msoa-lad.csv")
+```
+
