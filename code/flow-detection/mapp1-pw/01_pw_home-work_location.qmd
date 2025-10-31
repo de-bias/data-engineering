@@ -94,6 +94,11 @@ end_time <- Sys.time()
 print(end_time - start_time)
 ```
 
+```{r}
+lookup <- st_read("/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/hex10-lsoa-msoa-lad.gpkg")
+```
+
+
 ## Find home and work location for device
 
 We keep only devices where we are able to detect both home and work locations.
@@ -116,13 +121,13 @@ df_hw <- inner_join(df_home_aux, df_work_aux, by=c('device_aid_home' = 'device_a
 
 ```{r}
 df_hw_2 <- df_hw %>%
-  merge(df_lookup %>%
+  merge(lookup %>%
           st_drop_geometry() %>%
           select(h3_index, LAD21CD),
         by = c("location_home", "LAD21CD")
         ) %>%
   rename(code_home, LAD21CD) %>%
-  merge(df_lookup %>%
+  merge(lookup %>%
           st_drop_geometry() %>%
           select(h3_index, LAD21CD),
         by = c("location_work", "LAD21CD")
@@ -130,7 +135,6 @@ df_hw_2 <- df_hw %>%
   rename(code_work, LAD21CD) 
   
 ```
-
 
 ```{r}
 # coordinates <- h3_to_geo(df_hw$location_home) %>% as_data_frame()
@@ -172,18 +176,17 @@ if (month == TRUE) {
 }
 ```
 
-
 ## Add MSOA codes
 
 ```{r}
 df_hw_2 <- df_hw %>%
-  merge(df_lookup %>%
+  merge(lookup %>%
           st_drop_geometry() %>%
           select(h3_index, MSOA21CD),
         by = c("location_home", "MSOA21CD")
         ) %>%
   rename(code_home, MSOA21CD) %>%
-  merge(df_lookup %>%
+  merge(lookup %>%
           st_drop_geometry() %>%
           select(h3_index, MSOA21CD),
         by = c("location_work", "MSOA21CD")
@@ -236,13 +239,13 @@ if (month == TRUE) {
 
 ```{r}
 df_hw_2 <- df_hw %>%
-  merge(df_lookup %>%
+  merge(lookup %>%
           st_drop_geometry() %>%
           select(h3_index, LSOA21CD),
         by = c("location_home", "LSOA21CD")
         ) %>%
   rename(code_home, LSOA21CD) %>%
-  merge(df_lookup %>%
+  merge(lookup %>%
           st_drop_geometry() %>%
           select(h3_index, LSOA21CD),
         by = c("location_work", "LSOA21CD")

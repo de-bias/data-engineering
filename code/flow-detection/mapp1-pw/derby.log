@@ -1,6 +1,6 @@
 ----------------------------------------------------------------
-Thu Oct 30 10:00:26 GMT 2025:
-Booting Derby version The Apache Software Foundation - Apache Derby - 10.14.2.0 - (1828579): instance a816c00e-019a-348f-bc96-00000a575288 
+Fri Oct 31 09:46:53 GMT 2025:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.14.2.0 - (1828579): instance a816c00e-019a-39a9-b216-00000a608c78 
 on database directory memory:/Users/carmen/Documents/github/de-bias/data-engineering/code/flow-detection/mapp1-pw/databaseName=metastore_db with class loader jdk.internal.loader.ClassLoaders$AppClassLoader@42110406 
 Loaded from file:/Users/carmen/spark/spark-3.5.6-bin-hadoop3/jars/derby-10.14.2.0.jar
 java.vendor=Homebrew
