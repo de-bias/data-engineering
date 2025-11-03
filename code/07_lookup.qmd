@@ -147,4 +147,3 @@ lookup <- hex_sf %>%
 ```{r}
 write.csv(lookup, "/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/hex10-lsoa-msoa-lad.csv")
 ```
-
