@@ -20,10 +20,10 @@ lad  <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021
   st_transform(4326)
 
 msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_2021_EW_BFC_V7.gpkg") %>%
-  st_transform(4326)
+   st_transform(4326)
 
 lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec_2021_EW_BFC_V10.gpkg") %>%
-  st_transform(4326)
+   st_transform(4326)
 ```
 
 # Create hexagonal grid
@@ -31,7 +31,7 @@ lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec_202
 ## Choose resolution
 
 ```{r}
-res <- 5
+res <- 7
 ```
 
 ## Make grid
@@ -67,7 +67,7 @@ cells_all <- unique(unlist(lapply(polys_by_feature, function(polys) {
 # # flatten cells to a single vector of H3 indexes
 cells_vec <- unique(unlist(cells_all, use.names = FALSE))
  
-hex_sf <- h3::h3_to_geo_sf(cells_vec)
+hex_sf <- h3::h3_to_geo_sf(cells_vec) 
 
 ```
 
@@ -78,10 +78,11 @@ hex_children <- unique(unlist(lapply(hex_sf$h3_index, function(p) {
   h3::h3_to_children(p, res = 10)
 }), use.names = FALSE))
 
+hex_sf <- data.frame(h3_index = hex_children) 
 
-hex_sf <- data.frame(h3_index = hex_children) %>%
+hex_sf <- hex_sf %>%
   bind_cols(h3::h3_to_geo(hex_sf$h3_index)) %>%
-  st_as_sf(coords = c("lat", "lng"), crs = 4326)
+  st_as_sf(coords = c("lng", "lat"), crs = 4326)
 ```
 
 ## Plot grid (optional)
@@ -105,7 +106,16 @@ hex_sf <- data.frame(h3_index = hex_children) %>%
 #   theme_minimal()
 ```
 
+
 # Spatial join of cells with admin units
+
+```{r}
+hex_sf <- hex_sf %>% st_transform(3857)
+lad <- lad %>% st_transform(st_crs(hex_sf))
+msoa <- msoa %>% st_transform(st_crs(hex_sf))
+lsoa <- lsoa %>% st_transform(st_crs(hex_sf))
+```
+
 
 ```{r}
 hex_sf <- st_join(
