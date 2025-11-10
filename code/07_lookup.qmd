@@ -11,19 +11,26 @@ library(purrr)
 library(h3r)   
 library(arrow)   
 library(ggplot2)
+library(RANN) 
+library(h3)
 ```
 
 # Read data
 
 ```{r}
-lad  <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022.gpkg") %>%
-  st_transform(4326)
-
-msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_2021_EW_BFC_V7.gpkg") %>%
-   st_transform(4326)
+# lad  <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LAD_Dec_2021_GB_BFC_2022.gpkg") %>%
+#   st_transform(4326)
+# 
+# msoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_2021_EW_BFC_V7.gpkg") %>%
+#    st_transform(4326)
 
 lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec_2021_EW_BFC_V10.gpkg") %>%
    st_transform(4326)
+
+# lsoa <- st_read("/Users/carmen/Documents/github/gds-cc/data/Liverpool/liv_lsoas.gpkg") %>%
+#    st_transform(4326) %>%
+#    dplyr::select(-c(MSOA11CD))
+
 ```
 
 # Create hexagonal grid
@@ -31,14 +38,21 @@ lsoa <- st_read("/Volumes/DEBIAS/data/inputs/geographies/boundaries/LSOA_Dec_202
 ## Choose resolution
 
 ```{r}
-res <- 7
+# res <- 7
 ```
 
 ## Make grid
 
 ```{r}
+# lad <- head(lad, 5)
+```
 
-# drop the repeated closing vertex if present
+### but when making grid, store LSOA21CD
+
+```{r}
+#--------------------------------------------
+# Helper: drop repeated closing vertex if present
+#--------------------------------------------
 drop_closing_vertex <- function(mat) {
   if (nrow(mat) > 2 && all(mat[1, ] == mat[nrow(mat), ])) {
     mat <- mat[-nrow(mat), , drop = FALSE]
@@ -46,43 +60,136 @@ drop_closing_vertex <- function(mat) {
   mat
 }
 
-# Convert sfc to the "GeoJSON-like" structure that h3r expects
-sfc_to_h3r_polygons <- function(sfc) {
+#--------------------------------------------
+# Helper: convert sfc object → nested list structure for h3r::polygonToCells()
+#--------------------------------------------
+convert_sfc_to_list <- function(sfc) {
   sfc <- sf::st_cast(sfc, "MULTIPOLYGON", warn = FALSE)
-  lapply(sfc, function(mp) {
-    lapply(mp, function(poly) {
-      lapply(poly, function(ring) drop_closing_vertex(ring[, 1:2, drop = FALSE]))
+
+  lapply(sfc, function(multipoly) {
+    lapply(multipoly, function(poly) {
+      # Build each ring
+      rings <- lapply(poly, function(ring) {
+        ring <- ring[, 1:2, drop = FALSE]  # keep lon, lat only
+        ring <- drop_closing_vertex(ring)
+        ring <- unique(ring, MARGIN = 1)
+        if (nrow(ring) < 3) return(NULL)
+        storage.mode(ring) <- "double"
+        ring
+      })
+
+      # Remove NULL rings (too short etc.)
+      Filter(Negate(is.null), rings)
     })
   })
 }
 
-# build the polygons list for your gdf
-polys_by_feature <- sfc_to_h3r_polygons(sf::st_geometry(lad))
+#--------------------------------------------
+# MAIN PIPELINE
+#--------------------------------------------
 
-# fet H3 cells for every feature in gdf, combine & dedupe
-cells_all <- unique(unlist(lapply(polys_by_feature, function(polys) {
-  unlist(polygonToCells(polys, resolution = res, isLatLng = FALSE))
-}), use.names = FALSE))
+# 1. Make sure geometry is valid and in lon/lat (EPSG:4326)
+lsoa <- lsoa |>
+  st_make_valid() |>
+  st_transform(4326) |>
+  st_cast("MULTIPOLYGON", warn = FALSE)
 
-# # flatten cells to a single vector of H3 indexes
-cells_vec <- unique(unlist(cells_all, use.names = FALSE))
- 
-hex_sf <- h3::h3_to_geo_sf(cells_vec) 
+# 2. Build list-of-lists of coordinates
+poly_list <- convert_sfc_to_list(st_geometry(lsoa))
+
+# 3. Compute H3 cells per feature (change 'res' as desired)
+res <- 10
+cell_list <- lapply(seq_len(nrow(lsoa)), function(i) {
+  p <- poly_list[[i]]
+  if (length(p) == 0) return(NULL)
+
+  cell_ids <- unique(unlist(
+    polygonToCells(p, resolution = res, isLatLng = TRUE),
+    use.names = FALSE
+  ))
+
+  if (!length(cell_ids)) return(NULL)
+
+  data.frame(
+    LSOA21CD = lsoa$LSOA21CD[i],
+    hex_id  = cell_ids,
+    stringsAsFactors = FALSE
+  )
+})
+
+# 4. Combine results and remove duplicates
+cell_map <- bind_rows(cell_list) |>
+  distinct(LSOA21CD, hex_id)
+
+# 5. Convert unique hex IDs to sf geometry
+hex_geom <- h3_to_geo_sf(unique(cell_map$hex_id)) |>
+  rename(hex_id = h3_index) |>
+  st_set_crs(4326)
+
+# 6. Join geometry back to LAD mapping
+hex_sf <- cell_map |>
+  left_join(hex_geom, by = "hex_id") |>
+  st_as_sf()
+
+#--------------------------------------------
+# OPTIONAL: replace hex polygons with centroids
+#--------------------------------------------
+hex_sf_centroids <- hex_sf |>
+  mutate(geometry = st_centroid(geometry)) |>
+  select(hex_id, LSOA21CD, geometry) |>
+  st_set_crs(4326)
+
+```
+
+
+
+```{r}
+
+# # drop the repeated closing vertex if present
+# drop_closing_vertex <- function(mat) {
+#   if (nrow(mat) > 2 && all(mat[1, ] == mat[nrow(mat), ])) {
+#     mat <- mat[-nrow(mat), , drop = FALSE]
+#   }
+#   mat
+# }
+# 
+# # Convert sfc to the "GeoJSON-like" structure that h3r expects
+# sfc_to_h3r_polygons <- function(sfc) {
+#   sfc <- sf::st_cast(sfc, "MULTIPOLYGON", warn = FALSE)
+#   lapply(sfc, function(mp) {
+#     lapply(mp, function(poly) {
+#       lapply(poly, function(ring) drop_closing_vertex(ring[, 1:2, drop = FALSE]))
+#     })
+#   })
+# }
+# 
+# # build the polygons list for your gdf
+# polys_by_feature <- sfc_to_h3r_polygons(sf::st_geometry(lad))
+# 
+# # fet H3 cells for every feature in gdf, combine & dedupe
+# cells_all <- unique(unlist(lapply(polys_by_feature, function(polys) {
+#   unlist(polygonToCells(polys, resolution = res, isLatLng = FALSE))
+# }), use.names = FALSE))
+# 
+# # # flatten cells to a single vector of H3 indexes
+# cells_vec <- unique(unlist(cells_all, use.names = FALSE))
+#  
+# hex_sf <- h3::h3_to_geo_sf(cells_vec) 
 
 ```
 
 ## Faster way: compute grid at higher res (hex 7) then, make grid for children at higher res (hex 10)
 
 ```{r}
-hex_children <- unique(unlist(lapply(hex_sf$h3_index, function(p) {
-  h3::h3_to_children(p, res = 10)
-}), use.names = FALSE))
-
-hex_sf <- data.frame(h3_index = hex_children) 
-
-hex_sf <- hex_sf %>%
-  bind_cols(h3::h3_to_geo(hex_sf$h3_index)) %>%
-  st_as_sf(coords = c("lng", "lat"), crs = 4326)
+# hex_children <- unique(unlist(lapply(hex_sf$h3_index, function(p) {
+#   h3::h3_to_children(p, res = 10)
+# }), use.names = FALSE))
+# 
+# hex_sf <- data.frame(h3_index = hex_children) 
+# 
+# hex_sf <- hex_sf %>%
+#   bind_cols(h3::h3_to_geo(hex_sf$h3_index)) %>%
+#   st_as_sf(coords = c("lng", "lat"), crs = 4326)
 ```
 
 ## Plot grid (optional)
@@ -106,41 +213,109 @@ hex_sf <- hex_sf %>%
 #   theme_minimal()
 ```
 
-
 # Spatial join of cells with admin units
 
 ```{r}
-hex_sf <- hex_sf %>% st_transform(3857)
-lad <- lad %>% st_transform(st_crs(hex_sf))
-msoa <- msoa %>% st_transform(st_crs(hex_sf))
-lsoa <- lsoa %>% st_transform(st_crs(hex_sf))
+# hex_sf <- hex_sf %>% st_transform(3857)
+# lad <- lad %>% st_transform(st_crs(hex_sf))
+# msoa <- msoa %>% st_transform(st_crs(hex_sf))
+# lsoa <- lsoa %>% st_transform(st_crs(hex_sf))
 ```
 
+# Tests for spatial join
 
 ```{r}
-hex_sf <- st_join(
-  hex_sf,
-  lad %>% dplyr::select(LAD21CD),
-  join = st_within
-) 
+# system.time({
+#   hex_sf_test1 <- st_join(
+#     hex_sf,
+#     lad %>% dplyr::select(LAD21CD),
+#     join = st_within
+#   )
+# })
+```
 
-hex_sf <- st_join(
-  hex_sf,
-  msoa %>% dplyr::select(MSOA21CD),
-  join = st_within
-)
+```{r}
+# time_test1 <- system.time({
+#   hex_sf_test1 <- st_join(
+#     hex_sf,
+#     lad %>% dplyr::select(LAD21CD),
+#     join = st_within
+#   )
+# })
+```
 
-hex_sf <- st_join(
-  hex_sf,
-  lsoa %>% dplyr::select(LSOA21CD),
-  join = st_within
-)
+```{r}
+
+# sf::sf_use_s2(FALSE)  # often faster for local planar work
+# 
+# time_test2 <- system.time({
+#   hex_sf_test2 <- st_join(
+#     hex_sf,
+#     lad %>% dplyr::select(LAD21CD),
+#     join = st_within
+#   )
+# })
+```
+
+```{r}
+
+# # 1) Work in a planar CRS
+# hex_sf_test3 <- st_transform(hex_sf, 27700)  # EPSG:27700
+# lad    <- st_transform(lad,    27700)
+# 
+# # 2) Keep only what you need + 3) prep polys
+# lad <- lad["LAD21CD"]
+# lad <- st_make_valid(lad)
+# # Optional: tiny simplification if source is very detailed (tune tolerance!)
+# # lad <- st_simplify(lad, dTolerance = 5)
+# 
+# # 3) single-match join → avoids list overhead and is much faster
+# hex_sf_test3 <- st_join(
+#   hex_sf_test3,
+#   lad,
+#   join    = st_within,
+#   left    = TRUE,
+#   largest = TRUE
+# )
+```
+
+```{r}
+# time_test1
+```
+
+```{r}
+# time_test2
+```
+
+```{r}
+# hex_sf <- st_join(
+#   hex_sf,
+#   lad %>% dplyr::select(LAD21CD),
+#   join = st_within
+# ) 
+# 
+# hex_sf <- st_join(
+#   hex_sf,
+#   msoa %>% dplyr::select(MSOA21CD),
+#   join = st_within
+# )
+# 
+# hex_sf <- st_join(
+#   hex_sf,
+#   lsoa %>% dplyr::select(LSOA21CD),
+#   join = st_within
+# )
 ```
 
 # Drop geometry
 
 ```{r}
-lookup <- hex_sf %>%
+# lookup <- hex_sf %>%
+#   st_drop_geometry()
+```
+
+```{r}
+lookup <- hex_sf_centroids %>%
   st_drop_geometry()
 ```
 
@@ -155,5 +330,12 @@ lookup <- hex_sf %>%
 ## Save csv
 
 ```{r}
-write.csv(lookup, "/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/hex10-lsoa-msoa-lad.csv")
+# write.csv(lookup, "/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/hex10-lsoa-msoa-lad.csv")
 ```
+
+
+
+```{r}
+write.csv(lookup, "/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/hex10-lsoa-faster.csv")
+```
+
