@@ -36,7 +36,7 @@ wd <- "/Volumes/DEBIAS/data/inputs/"
 ```{r}
 # Month or week? If month == TRUE, work with data for March 2021. Else, work with data for first week of April 2021.
 
-month <- FALSE
+month <- TRUE
 ```
 
 ## Read input data
@@ -134,19 +134,18 @@ df_hw_2 <- df_hw %>%
   
 ```
 
-
 ## Group by LAD home and work
 
 ```{r}
 df_flows_lad <- df_hw_2 %>%
-  select(c("LAD22CD_home", "LAD22CD_work"))
+  select(c("LAD22CD_home", "LAD22CD_work")) %>%
   group_by(LAD22CD_home, LAD22CD_work) %>%
   summarise(count = n(), .groups = "drop")
 
 if (month == TRUE) {
-  write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/lad/flow-home-work_lad_htw_pw-month.csv")
+  write.csv(df_flows_lad, "/Volumes/DEBIAS/data/inputs/mapp1/flows/lad/flow-home-work_lad_htw_pw-month.csv")
 } else {
-  write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/lad/flow-home-work_lad_htw_pw.csv")
+  write.csv(df_flows_lad, "/Volumes/DEBIAS/data/inputs/mapp1/flows/lad/flow-home-work_lad_htw_pw.csv")
 }
 ```
 
@@ -154,29 +153,28 @@ if (month == TRUE) {
 
 ```{r}
 df_flows_msoa <- df_hw_2 %>%
-  select(c("MSOA21CD_home", "MSOA21CD_work"))
+  select(c("MSOA21CD_home", "MSOA21CD_work")) %>%
   group_by(MSOA21CD_home, MSOA21CD_work) %>%
   summarise(count = n(), .groups = "drop")
 
 if (month == TRUE) {
-  write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/msoa/flow-home-work_msoa_htw_pw-month.csv")
+  write.csv(df_flows_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/flows/msoa/flow-home-work_msoa_htw_pw-month.csv")
 } else {
-  write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/msoa/flow-home-work_msoa_htw_pw.csv")
+  write.csv(df_flows_msoa, "/Volumes/DEBIAS/data/inputs/mapp1/flows/msoa/flow-home-work_msoa_htw_pw.csv")
 }
 ```
-
 
 ## Group by LSOA home and work
 
 ```{r}
-df_flows <- df_hw_2 %>%
-  select(c("LSOA21CD_home", "LSOA21CD_work"))
-  group_by(LSOA21CD_home, LSOA21CD_work)) %>%
+df_flows_lsoa <- df_hw_2 %>%
+  select(c("LSOA21CD_home", "LSOA21CD_work")) %>%
+  group_by(LSOA21CD_home, LSOA21CD_work) %>%
   summarise(count = n(), .groups = "drop")
 
 if (month == TRUE) {
-  write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/lsoa/flow-home-work_lsoa_htw_pw-month.csv")
+  write.csv(df_flows_lsoa, "/Volumes/DEBIAS/data/inputs/mapp1/flows/lsoa/flow-home-work_lsoa_htw_pw-month.csv")
 } else {
-  write.csv(df_flows, "/Volumes/DEBIAS/data/inputs/mapp1/flows/lsoa/flow-home-work_lsoa_htw_pw.csv")
+  write.csv(df_flows_lsoa, "/Volumes/DEBIAS/data/inputs/mapp1/flows/lsoa/flow-home-work_lsoa_htw_pw.csv")
 }
 ```

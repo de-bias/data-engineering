@@ -153,11 +153,9 @@ lookup <- lookup %>%
   dplyr::select(-c(X))
 ```
 
-
 ```{r}
 lookup_admin <- read.csv("/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/OA_to_LSOA_to_MSOA_to_LAD_Dec_2021_EW_V3.csv")
 ```
-
 
 ```{r}
 lookup_admin_clean <- lookup_admin %>% 
@@ -184,4 +182,3 @@ lookup_join <- lookup_join %>%
 ```{r}
 write.csv(lookup_join, "/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/hex10-lsoa-msoa-lad.csv")
 ```
-
