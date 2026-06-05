@@ -1,0 +1,48 @@
+---
+title: "03_lz_home-location_coverage"
+format: html
+editor: visual
+---
+
+# Join Mapp2 user counts with census population
+
+```{r}
+#| warning: false
+#| message: false
+library(readr)
+library(dplyr)
+```
+
+```{r}
+input_mapp2 <- "/Volumes/DEBIAS/data/inputs/mapp2/locations-origin/msoa/location-origin-count_msoa.csv"
+input_census <- "/Volumes/DEBIAS/data/inputs/census/census2021-ts/combined-data-msoa.csv"
+output_dir <- "/Volumes/DEBIAS/data/outputs/mapp2/census-month/populations/active-population-bias"
+output_file <- file.path(output_dir, "location-origin-count_msoa_joined.csv")
+
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+```
+
+```{r}
+df_mapp2 <- read_csv(input_mapp2, show_col_types = FALSE) %>%
+  select(MSOA21CD, pop_dfd) %>%
+  rename(user_count = pop_dfd)
+
+df_census <- read_csv(input_census, show_col_types = FALSE) %>%
+  select(date, geography.code, geography, total_residents) %>%
+  rename(
+    name = geography,
+    population = total_residents
+  )
+
+df_joined <- df_mapp2 %>%
+  left_join(df_census, by = c("MSOA21CD" = "geography.code")) %>%
+  select(date, MSOA21CD, name, population, user_count)
+
+write_csv(df_joined, output_file)
+
+df_joined
+```
+
+```{r}
+output_file
+```
