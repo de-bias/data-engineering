@@ -14,10 +14,10 @@ library(dplyr)
 ```
 
 ```{r}
-input_mapp2 <- "/Volumes/DEBIAS/data/inputs/mapp2/locations-origin/msoa/location-origin-count_msoa.csv"
+input_mapp2 <- "/Volumes/DEBIAS/data/inputs/mapp2/locations-origin/msoa/location-home-count_msoa_htw.csv"
 input_census <- "/Volumes/DEBIAS/data/inputs/census/census2021-ts/combined-data-msoa.csv"
 output_dir <- "/Volumes/DEBIAS/data/outputs/mapp2/census-month/populations/active-population-bias"
-output_file <- file.path(output_dir, "location-origin-count_msoa_joined.csv")
+output_file <- file.path(output_dir, "location-origin-count_msoa_joined_htw.csv")
 
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 ```
@@ -37,11 +37,14 @@ df_census <- read_csv(input_census, show_col_types = FALSE) %>%
 df_joined <- df_mapp2 %>%
   left_join(df_census, by = c("MSOA21CD" = "geography.code")) %>%
   select(date, MSOA21CD, name, population, user_count)
+```
 
+```{r}
 write_csv(df_joined, output_file)
 
 df_joined
 ```
+
 
 ```{r}
 output_file

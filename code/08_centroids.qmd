@@ -1,0 +1,42 @@
+---
+title: "08 Centroids"
+format: html
+editor: visual
+---
+
+```{r}
+library(dplyr)
+library(sf)
+```
+
+```{r}
+source_gpkg <- "/Volumes/DEBIAS/data/inputs/geographies/boundaries/MSOA_Dec_2021_EW_BFC_V7.gpkg"
+output_file <- "/Volumes/DEBIAS/data/inputs/geographies/centroids/msoa_centroids.rds"
+
+msoa_source <- st_read(
+  source_gpkg,
+  query = "
+    SELECT
+      MSOA21CD,
+      MSOA21NM,
+      BNG_E,
+      BNG_N,
+      LONG,
+      LAT
+    FROM MSOA_2021_EW_BFC_V7
+  ",
+  quiet = TRUE
+)
+
+msoa_centroids <- msoa_source |>
+  transmute(
+    area = MSOA21CD,
+    name = MSOA21NM,
+    easting = as.numeric(BNG_E),
+    northing = as.numeric(BNG_N),
+    longitude = as.numeric(LONG),
+    latitude = as.numeric(LAT)
+  )
+
+saveRDS(msoa_centroids, output_file)
+```
