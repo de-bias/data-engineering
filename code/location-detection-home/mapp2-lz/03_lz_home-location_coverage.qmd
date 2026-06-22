@@ -39,7 +39,8 @@ df_joined <- df_census %>%
   left_join(df_mapp2, by = c("geography.code" = "MSOA21CD")) %>%
   mutate(user_count = if_else(is.na(user_count), 0, user_count)) %>%
   rename ("MSOA21CD" = "geography.code") %>%
-  select(date, MSOA21CD, name, population, user_count)
+  select(date, MSOA21CD, name, population, user_count) %>%
+  filter(user_count > 0)
 ```
 
 ```{r}
@@ -47,7 +48,8 @@ output_file <- file.path(output_dir, "location-origin-count_msoa_joined_htw.csv"
 write_csv(df_joined, output_file)
 
 output_file <- file.path(output_dir, "coverage_msoa.rda")
-coverage_msoa <- df_joined
+coverage_msoa <- df_joined %>%
+  rename(code = MSOA21CD)
 save(coverage_msoa, file = output_file)
 ```
 
@@ -79,7 +81,8 @@ output_file <- file.path(output_dir, "location-origin-count_lad_joined_htw.csv")
 write_csv(df_joined_lad, output_file)
 
 output_file <- file.path(output_dir, "coverage_lad.rda")
-coverage_lad <- df_joined_lad
+coverage_lad <- df_joined_lad %>%
+  rename(code = LAD22CD)
 save(coverage_lad, file = output_file)
 ```
 
