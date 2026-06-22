@@ -20,7 +20,7 @@ library(sf)
 # Set directory
 
 ```{r}
-wd <- "/Volumes/rdm04/DEBIAS"
+wd <- "/Volumes/DEBIAS"
 ```
 
 # Read data
@@ -55,7 +55,7 @@ pop_count <- df_lda_codes %>%
 ```
 
 ```{r}
-write_csv(pop_count, "/Volumes/rdm04/DEBIAS/data/outputs/mapp2/locations-origin/lad/location-origin-count_lad.csv")
+write_csv(pop_count, paste0(wd, "/data/inputs/mapp2/locations-origin/lad/location-origin-count_lad.csv"))
 ```
 
 # Use home to work data
@@ -75,5 +75,5 @@ pop_count <- df_lda_codes %>%
 ```
 
 ```{r}
-write_csv(pop_count, "/Volumes/rdm04/DEBIAS/data/outputs/mapp2/locations-origin/lad/location-home-count_lad_htw.csv")
+write_csv(pop_count, paste0(wd, "/data/inputs/mapp2/locations-origin/lad/location-home-count_lad_htw.csv"))
 ```

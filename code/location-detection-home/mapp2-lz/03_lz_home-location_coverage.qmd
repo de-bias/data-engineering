@@ -16,9 +16,10 @@ library(dplyr)
 ```{r}
 input_mapp2 <- "/Volumes/DEBIAS/data/inputs/mapp2/locations-origin/msoa/location-home-count_msoa_htw.csv"
 input_census <- "/Volumes/DEBIAS/data/inputs/census/census2021-ts/combined-data-msoa.csv"
-output_dir <- "/Volumes/DEBIAS/data/outputs/mapp2/census-month/populations/active-population-bias"
-output_file <- file.path(output_dir, "location-origin-count_msoa_joined_htw.csv")
+```
 
+```{r}
+output_dir <- "/Volumes/DEBIAS/data/outputs/mapp2/census-month/populations/active-population-bias"
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 ```
 
@@ -34,18 +35,53 @@ df_census <- read_csv(input_census, show_col_types = FALSE) %>%
     population = total_residents
   )
 
-df_joined <- df_mapp2 %>%
-  left_join(df_census, by = c("MSOA21CD" = "geography.code")) %>%
+df_joined <- df_census %>%
+  left_join(df_mapp2, by = c("geography.code" = "MSOA21CD")) %>%
+  mutate(user_count = if_else(is.na(user_count), 0, user_count)) %>%
+  rename ("MSOA21CD" = "geography.code") %>%
   select(date, MSOA21CD, name, population, user_count)
 ```
 
 ```{r}
+output_file <- file.path(output_dir, "location-origin-count_msoa_joined_htw.csv")
 write_csv(df_joined, output_file)
 
-df_joined
+output_file <- file.path(output_dir, "coverage_msoa.rda")
+coverage_msoa <- df_joined
+save(coverage_msoa, file = output_file)
+```
+
+```{r}
+# read lookup msoa to lda
+lookup <- read_csv( paste0("/Volumes/DEBIAS/data/inputs/geographies/lookup21ew/OA_to_LSOA_to_MSOA_to_LAD_Dec_2021_EW_V3.csv") ) %>% 
+  select( c(MSOA21CD, MSOA21NM, LAD22CD, LAD22NM) ) %>% 
+  distinct(MSOA21CD, .keep_all = TRUE)
 ```
 
 
 ```{r}
-output_file
+df_joined_lad <- df_joined %>%
+  left_join(lookup, by = c("MSOA21CD" = "MSOA21CD")) %>%
+  select(date, LAD22CD, LAD22NM, population, user_count) %>%
+  group_by(LAD22CD, LAD22NM) %>%
+  summarise(
+    date = 2021,
+    population = sum(population),
+    user_count = sum(user_count),
+    .groups = "drop"
+  ) %>%
+  rename(name = LAD22NM) %>%
+  select(date, LAD22CD, name, population, user_count)
 ```
+
+```{r}
+output_file <- file.path(output_dir, "location-origin-count_lad_joined_htw.csv")
+write_csv(df_joined_lad, output_file)
+
+output_file <- file.path(output_dir, "coverage_lad.rda")
+coverage_lad <- df_joined_lad
+save(coverage_lad, file = output_file)
+```
+
+
+

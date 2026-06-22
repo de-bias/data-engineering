@@ -97,5 +97,7 @@ lad_flows <- df_lad_codes %>%
 ```
 
 ```{r}
-write_csv(lad_flows, "/Volumes/rdm04/DEBIAS/data/outputs/mapp2/flows/lad/flow-home-work_lad_htw.csv")
+write_csv(lad_flows, "/Volumes/rdm04/DEBIAS/data/outputs/mapp2/flows/lad/flow-home-work_lad.csv")
 ```
+
+
